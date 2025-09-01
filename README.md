@@ -1,16 +1,17 @@
 # action-zenifra
-This GitHub Action facilitates the deployment of Docker images to [Zenifra](https://homepage-ad5846ff46dac8d0a7.zenifra.com), a platform designed to streamline application hosting and management.
+This GitHub Action facilitates the deployment of images to [Zenifra](https://www.zenifra.com), a platform designed to streamline application hosting and management.
 
 ## Input parameters
 
-| Name           | Description                      | Required | Default          |
-| :------------- | :------------------------------- | :------- | :--------------- |
-| image          | The Docker image to be deployed  | `true`   | N/A              |
-| project_id     | The ID of the project on Zenifra | `true`   | N/A              |
+| Name           | Description                            | Required | Default          |
+| :------------- | :------------------------------------- | :------- | :--------------- |
+| IMAGE          | The URL to be deployed on Zenifra      | `true`   | N/A              |
+| PROJECT_ID     | The ID of the project on Zenifra       | `true`   | N/A              |
+| API_KEY        | The API_KEY of the project on Zenifra  | `true`   | N/A              |
 
 ## Example
 
-The example below demonstrates a complete workflow that builds and publishes a Docker image to Docker Hub, followed by deploying this new image on Zenifra.
+The example below demonstrates a complete workflow that builds and publishes an image to Docker Hub, followed by deploying this new image on Zenifra.
 
 ```yaml
 name: Deploy PRD
@@ -20,7 +21,7 @@ on:
       - main
 
 jobs:
-  build: # Job to build and publish the Docker image
+  build: # Job to build and publish the image
     name: build
     runs-on: ubuntu-latest
     steps:
@@ -40,7 +41,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and Publish Docker Image
-        run: docker buildx build -t <username_docker>/<name_image>:<tag> --platform=linux/amd64 --push .
+        run: docker buildx build -t <registry>/<username-docker>/<name-image>:<tag> --platform=linux/amd64 --push .
 
   deploy: # Job to deploy the Docker image on Zenifra
     needs: build
@@ -53,5 +54,6 @@ jobs:
       - name: Deploy Image to Zenifra
         uses: ramonpaolo/action-zenifra@main
         with:
-          project_id: <project_id>
-          image: <username_docker>/<name_image>:<tag>
+          PROJECT_ID: <project-id>
+          IMAGE: <registry>/<username-docker>/<name-image>:<tag>
+          API_KEY: <api-key>

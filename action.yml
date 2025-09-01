@@ -12,5 +12,5 @@ inputs:
     description: 'The API_KEY to authenticate in Zenifra'
     required: true
 runs:
-  using: node20
+  using: node24
   main: dist/index.js

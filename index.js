@@ -6,9 +6,9 @@ try {
   const API_KEY = core.getInput('API_KEY');
   const NEW_IMAGE = core.getInput('IMAGE');
 
-  core.info(`updating deployment to use image ${NEW_IMAGE}`);
+  core.info(`Updating deployment to use image ${NEW_IMAGE}`);
 
-  fetch(`https://api.zenifra.com/v1/user/project/${PROJECT_ID}/image`, {
+  fetch(`https://api.zenifra.com/v1/project/${PROJECT_ID}/image`, {
     method: 'PATCH',
     body: JSON.stringify({
       image: NEW_IMAGE,
@@ -22,7 +22,7 @@ try {
       const receivedStatusCode = v.status;
 
       if (receivedStatusCode === 200) {
-        core.info('update deployment with new image was a success!')
+        core.info('Update deployment with success!')
         return;
       }
 
