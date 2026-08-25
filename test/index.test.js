@@ -109,7 +109,7 @@ test('keeps the legacy deployment update when PREVIEW is absent', async () => {
     inputs: {
       PROJECT_ID: 'project-123',
       API_KEY: 'secret-key',
-      IMAGE: 'registry.example/app:latest'
+      IMAGE: 'registry.example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
     },
     responses: [response(200)]
   });
@@ -117,7 +117,7 @@ test('keeps the legacy deployment update when PREVIEW is absent', async () => {
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, 'https://api.zenifra.com/v1/project/project-123/image');
   assert.equal(calls[0].options.method, 'PATCH');
-  assert.deepEqual(JSON.parse(calls[0].options.body), { image: 'registry.example/app:latest' });
+  assert.deepEqual(JSON.parse(calls[0].options.body), { image: 'registry.example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' });
   assert.equal(calls[0].options.headers['X-API-Key'], 'secret-key');
   assert.deepEqual(core.outputs, {});
   assert.equal(core.summaryRows.length, 0);
@@ -129,7 +129,7 @@ test('uses a configured API base URL for a legacy deployment', async () => {
       API_BASE_URL: 'https://api-stg.example.test',
       PROJECT_ID: 'project-123',
       API_KEY: 'secret-key',
-      IMAGE: 'registry.example/app:latest'
+      IMAGE: 'registry.example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
     },
     responses: [response(200)]
   });
@@ -142,7 +142,7 @@ test('rejects an API base URL with a path before network access', async () => {
     API_BASE_URL: 'https://api-stg.example.test/v1',
     PROJECT_ID: 'project-123',
     API_KEY: 'secret-key',
-    IMAGE: 'registry.example/app:latest'
+    IMAGE: 'registry.example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
   });
   const action = loadAction();
   let fetchCalled = false;
@@ -274,7 +274,7 @@ test('requires an explicit key for preview actions outside pull requests before 
   const core = createCore({
     PROJECT_ID: 'project-123',
     API_KEY: 'secret-key',
-    IMAGE: 'registry.example/app:latest',
+    IMAGE: 'registry.example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     PREVIEW: 'true'
   });
   const action = loadAction();
@@ -298,7 +298,7 @@ test('fails when an upsert reaches an incompatible terminal state', async () => 
   const core = createCore({
     PROJECT_ID: 'project-123',
     API_KEY: 'secret-key',
-    IMAGE: 'registry.example/app:latest',
+    IMAGE: 'registry.example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     PREVIEW: 'true',
     PREVIEW_KEY: 'manual-preview'
   });
@@ -357,7 +357,7 @@ test('recovers from a conflict that returns the active operation', async () => {
     inputs: {
       PROJECT_ID: 'project-123',
       API_KEY: 'secret-key',
-      IMAGE: 'registry.example/app:latest',
+      IMAGE: 'registry.example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       PREVIEW: 'true',
       PREVIEW_KEY: 'manual-preview',
       PREVIEW_ACTION: 'upsert',
@@ -377,7 +377,7 @@ test('validates preview duration before making a request', async () => {
   const core = createCore({
     PROJECT_ID: 'project-123',
     API_KEY: 'secret-key',
-    IMAGE: 'registry.example/app:latest',
+    IMAGE: 'registry.example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     PREVIEW: 'true',
     PREVIEW_KEY: 'manual-preview',
     PREVIEW_TTL: '169h'
@@ -406,7 +406,7 @@ test('backs off while polling and attaches an abort timeout to each request', as
     const localCore = createCore({
       PROJECT_ID: 'project-123',
       API_KEY: 'secret-key',
-      IMAGE: 'registry.example/app:latest',
+      IMAGE: 'registry.example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       PREVIEW: 'true',
       PREVIEW_KEY: 'manual-preview',
       WAIT_TIMEOUT: '5s'
@@ -444,7 +444,7 @@ test('does not expose unsafe API error details', async () => {
   const core = createCore({
     PROJECT_ID: 'project-123',
     API_KEY: 'secret-key',
-    IMAGE: 'registry.example/app:latest'
+    IMAGE: 'registry.example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
   });
   const action = loadAction();
 

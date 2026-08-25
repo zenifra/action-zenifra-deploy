@@ -1,5 +1,5 @@
 name: 'Zenifra Deploy'
-description: 'Deploy an image to Zenifra or manage a Preview Environment / Implante uma imagem na Zenifra ou gerencie um Ambiente de Preview'
+description: 'Deploy to Zenifra or manage a Preview Environment / Implante na Zenifra ou gerencie um Preview'
 author: Ramon Paolo Maram
 inputs:
   IMAGE:
