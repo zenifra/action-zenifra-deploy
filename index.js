@@ -25,7 +25,7 @@ const TRANSITIONAL_STATES = new Set([
 
 const PUBLIC_API_ERRORS = {
   unauthorized: 'Authentication failed. Check the API key and try again.',
-  forbidden: 'This project cannot use preview environments.',
+  forbidden: 'This API key cannot manage Preview Environments for this project. Verify the project is enabled and the key has Preview management access.',
   project_not_found: 'The project could not be found.',
   preview_not_found: 'The preview environment could not be found.',
   preview_not_enabled: 'Preview environments are not enabled for this project.',
