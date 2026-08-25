@@ -1,16 +1,57 @@
-name: 'Zenifra Image'
-description: 'Action to be used to deploy new image in Zenifra'
+name: 'Zenifra Deploy'
+description: 'Deploy an image to Zenifra or manage a Preview Environment / Implante uma imagem na Zenifra ou gerencie um Ambiente de Preview'
 author: Ramon Paolo Maram
 inputs:
   IMAGE:
-    description: 'The new image to update the project'
-    required: true
+    description: 'Image to deploy. Required for standard deployments and preview upserts; not required for preview deletes / Imagem para implantar. Obrigatória em deploy normal e upsert de preview; dispensada em deletes.'
+    required: false
   PROJECT_ID:
-    description: 'The project id of project in Zenifra'
+    description: 'ID of the main Zenifra project / ID do projeto principal na Zenifra'
     required: true
   API_KEY:
-    description: 'The API_KEY to authenticate in Zenifra'
+    description: 'Project API key. Store it in a GitHub secret / Chave de API do projeto. Armazene-a em um secret do GitHub'
     required: true
+  API_BASE_URL:
+    description: 'API origin. Defaults to the production API; use a test environment origin for validation / Origem da API. Usa a API de produção por padrão; use a origem de um ambiente de teste para validação'
+    required: false
+    default: 'https://api.zenifra.com'
+  PREVIEW:
+    description: 'Enable Preview Environment mode / Ativa o modo Ambiente de Preview'
+    required: false
+    default: 'false'
+  INHERIT_ENVS:
+    description: 'Inherit user-configured environment variables from the main project / Herda as variáveis de ambiente configuradas pelo usuário no projeto principal'
+    required: false
+    default: 'false'
+  PREVIEW_KEY:
+    description: 'Stable preview key; derived as pr-<number> for pull_request events / Chave estável; derivada como pr-<number> em eventos pull_request'
+    required: false
+  PREVIEW_PLAN:
+    description: 'Optional Preview Environment plan / Plano opcional do Ambiente de Preview'
+    required: false
+  PREVIEW_TTL:
+    description: 'Preview lifetime from 1h to 168h; default 24h / Duração do preview de 1h a 168h; padrão 24h'
+    required: false
+    default: '24h'
+  PREVIEW_ACTION:
+    description: 'Preview action: auto, upsert, or delete / Ação do preview: auto, upsert ou delete'
+    required: false
+    default: 'auto'
+  WAIT_TIMEOUT:
+    description: 'Maximum wait for the preview operation, from 1s to 15m; default 10m / Espera máxima pela operação, de 1s a 15m; padrão 10m'
+    required: false
+    default: '10m'
+outputs:
+  preview_id:
+    description: 'Preview Environment ID after a terminal operation / ID do Ambiente de Preview após uma operação terminal'
+  preview_url:
+    description: 'Preview Environment URL, when available / URL do Ambiente de Preview, quando disponível'
+  expires_at:
+    description: 'Preview expiration timestamp / Data e hora de expiração do preview'
+  operation_id:
+    description: 'Operation ID / ID da operação'
+  preview_status:
+    description: 'Terminal Preview Environment status / Status terminal do Ambiente de Preview'
 runs:
   using: node24
   main: dist/index.js
