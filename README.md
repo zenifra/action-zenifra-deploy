@@ -175,11 +175,18 @@ Preview outputs are set only after the operation reaches a terminal state. For `
 
 | Output | Descrição / Description |
 | :--- | :--- |
+| `project_id` | ID do projeto principal / Main project ID |
+| `preview_key` | Chave estável do Preview / Stable Preview key |
+| `preview_ttl` | Duração configurada do Preview; vazio em `delete` / Configured Preview lifetime; empty for `delete` |
 | `preview_id` | ID do Ambiente de Preview / Preview Environment ID |
 | `preview_url` | URL própria do preview, quando disponível / Preview URL, when available |
 | `expires_at` | Expiração / Expiration timestamp |
 | `operation_id` | ID da operação assíncrona / Async operation ID |
 | `preview_status` | Estado terminal / Terminal status (`available` ou `deleted`) |
+
+Quando um Preview fica disponível, o log do job informa o `PROJECT_ID`, a chave, o status, a URL retornada pela API, o TTL configurado, a data de expiração e o ID da operação. A mesma informação fica no Job Summary.
+
+When a Preview becomes available, the job log reports the `PROJECT_ID`, key, status, API URL, configured TTL, expiration time, and operation ID. The same information is included in the Job Summary.
 
 A Action aguarda a conclusão com polling limitado. Se o tempo acabar ou o estado final não for compatível com a ação solicitada, o job falha com uma mensagem pública e segura. Um `delete` de um preview já ausente é considerado sucesso.
 

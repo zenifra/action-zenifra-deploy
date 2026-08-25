@@ -570,10 +570,14 @@ async function writeSummary(activeCore, inputs, result) {
   }
 
   const rows = [
+    [{ data: 'Projeto / Project ID', header: true }, inputs.projectId],
     [{ data: 'Chave / Key', header: true }, inputs.previewKey],
     [{ data: 'Ação / Action', header: true }, inputs.action],
     [{ data: 'Status', header: true }, result.status]
   ];
+  if (inputs.action === 'upsert') {
+    rows.push([{ data: 'Duração / Lifetime', header: true }, inputs.ttl.value]);
+  }
   if (result.previewId) {
     rows.push([{ data: 'ID', header: true }, result.previewId]);
   }
@@ -590,12 +594,38 @@ async function writeSummary(activeCore, inputs, result) {
     .write();
 }
 
-function setPreviewOutputs(activeCore, result) {
+function setPreviewOutputs(activeCore, inputs, result) {
+  activeCore.setOutput('project_id', inputs.projectId);
+  activeCore.setOutput('preview_key', inputs.previewKey);
+  activeCore.setOutput('preview_ttl', inputs.action === 'upsert' ? inputs.ttl.value : '');
   activeCore.setOutput('preview_id', result.previewId || '');
   activeCore.setOutput('preview_url', result.previewUrl || '');
   activeCore.setOutput('expires_at', result.expiresAt || '');
   activeCore.setOutput('operation_id', result.operationId || '');
   activeCore.setOutput('preview_status', result.status || '');
+}
+
+function writePreviewLog(activeCore, inputs, result) {
+  const details = [
+    `Project ID: ${inputs.projectId}`,
+    `Preview key: ${inputs.previewKey}`,
+    `Status: ${result.status}`
+  ];
+
+  if (result.previewUrl) {
+    details.push(`URL: ${result.previewUrl}`);
+  }
+  if (inputs.action === 'upsert') {
+    details.push(`Lifetime: ${inputs.ttl.value}`);
+    if (result.expiresAt) {
+      details.push(`Expires at: ${result.expiresAt}`);
+    }
+  }
+  if (result.operationId) {
+    details.push(`Operation ID: ${result.operationId}`);
+  }
+
+  activeCore.info(`Preview ${result.status}. ${details.join('. ')}.`);
 }
 
 function publicErrorMessage(error) {
@@ -640,9 +670,9 @@ async function run(deps = {}) {
   }
 
   const result = await runPreview({ inputs, fetchFn, sleep, now });
-  setPreviewOutputs(activeCore, result);
+  setPreviewOutputs(activeCore, inputs, result);
   await writeSummary(activeCore, inputs, result);
-  activeCore.info(`Preview ${result.status}.`);
+  writePreviewLog(activeCore, inputs, result);
 }
 
 async function main() {

@@ -211,12 +211,16 @@ test('upserts a stable PR preview and publishes outputs only after availability'
   });
   assert.equal(calls[1].url, `${calls[0].url}/operations/operation-1`);
   assert.deepEqual(core.outputs, {
+    project_id: 'project-123',
+    preview_key: 'pr-42',
+    preview_ttl: '24h',
     preview_id: 'preview-1',
     preview_url: 'https://preview.example/preview-1',
     expires_at: '2026-08-25T00:00:00Z',
     operation_id: 'operation-1',
     preview_status: 'available'
   });
+  assert.ok(core.logs.some(({ message }) => message.includes('Preview available. Project ID: project-123. Preview key: pr-42. Status: available. URL: https://preview.example/preview-1. Lifetime: 24h. Expires at: 2026-08-25T00:00:00Z. Operation ID: operation-1.')));
   assert.equal(core.summaryRows.at(-1)[0], 'write');
   assert.ok(core.summaryRows.some(([kind, value]) => kind === 'table' && JSON.stringify(value).includes('preview-1')));
 });
@@ -240,6 +244,9 @@ test('deletes a closed PR preview without requiring an image', async () => {
   assert.equal(calls[0].url, 'https://api.zenifra.com/v1/project/project-123/preview-environments/pr-42');
   assert.equal(calls[0].options.body, undefined);
   assert.deepEqual(core.outputs, {
+    project_id: 'project-123',
+    preview_key: 'pr-42',
+    preview_ttl: '',
     preview_id: '',
     preview_url: '',
     expires_at: '',

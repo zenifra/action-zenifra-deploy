@@ -39,6 +39,12 @@ inputs:
     required: false
     default: '10m'
 outputs:
+  project_id:
+    description: 'Main project ID / ID do projeto principal'
+  preview_key:
+    description: 'Stable Preview key / Chave estável do Preview'
+  preview_ttl:
+    description: 'Configured Preview lifetime / Duração configurada do Preview'
   preview_id:
     description: 'Preview Environment ID after a terminal operation / ID do Ambiente de Preview após uma operação terminal'
   preview_url:
