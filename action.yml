@@ -19,10 +19,7 @@ inputs:
     description: 'Enable Preview Environment mode / Ativa o modo Ambiente de Preview'
     required: false
     default: 'false'
-  INHERIT_ENVS:
-    description: 'Inherit user-configured environment variables from the main project / Herda as variáveis de ambiente configuradas pelo usuário no projeto principal'
-    required: false
-    default: 'false'
+
   PREVIEW_KEY:
     description: 'Stable preview key; derived as pr-<number> for pull_request events / Chave estável; derivada como pr-<number> em eventos pull_request'
     required: false

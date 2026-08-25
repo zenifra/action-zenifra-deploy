@@ -168,7 +168,7 @@ test('upserts a stable PR preview and publishes outputs only after availability'
       API_KEY: 'secret-key',
       IMAGE: 'registry.example/app:pr-42',
       PREVIEW: 'true',
-      INHERIT_ENVS: 'true',
+
       PREVIEW_TTL: '24h',
       WAIT_TIMEOUT: '1s'
     },
@@ -351,7 +351,7 @@ test('auto upserts a keyed preview outside pull requests with safe defaults', as
   assert.equal(calls[0].options.method, 'PUT');
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     image: 'registry.example/app:manual',
-    inherit_envs: false,
+    inherit_envs: true,
     ttl_hours: 24
   });
   assert.equal(core.outputs.preview_status, 'available');

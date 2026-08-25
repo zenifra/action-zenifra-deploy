@@ -40,7 +40,7 @@ jobs:
 | `API_BASE_URL` | Origem da API; permite validar a Action contra um ambiente de teste / API origin; allows validation against a test environment | Não / No | `https://api.zenifra.com` |
 | `IMAGE` | Imagem a publicar. Obrigatória em deploy normal e `upsert`; dispensada em `delete` / Image to deploy. Required for standard deployments and `upsert`; not required for `delete` | Condicional / Conditional | — |
 | `PREVIEW` | Ativa Ambientes de Preview / Enables Preview Environments | Não / No | `false` |
-| `INHERIT_ENVS` | Herda ENVs configurados pelo usuário no projeto principal / Inherits user-configured ENVs from the main project | Não / No | `false` |
+
 | `PREVIEW_KEY` | Chave estável. Em `pull_request`, deriva `pr-<number>` quando omitida / Stable key. On `pull_request`, derives `pr-<number>` when omitted | Condicional / Conditional | — |
 | `PREVIEW_TTL` | Duração entre `1h` e `168h` / Lifetime from `1h` to `168h` | Não / No | `24h` |
 | `PREVIEW_ACTION` | `auto`, `upsert` ou `delete` / `auto`, `upsert`, or `delete` | Não / No | `auto` |
@@ -120,7 +120,7 @@ jobs:
           API_KEY: ${{ secrets.ZENIFRA_API_KEY }}
           IMAGE: registry.example.com/my-app:${{ github.event.pull_request.head.sha }}
           PREVIEW: true
-          INHERIT_ENVS: false
+
           PREVIEW_TTL: 24h
 ```
 
@@ -163,9 +163,9 @@ O Preview sempre usa o mesmo plano do projeto principal. `PREVIEW_TTL` controla 
 
 The Preview always uses the main project's plan. `PREVIEW_TTL` controls only the lifetime; there is no separate Preview plan selection.
 
-`INHERIT_ENVS=true` copia os ENVs configurados pelo usuário dentro da Zenifra; os valores não atravessam a Action e nunca são mostrados. Esses ENVs podem apontar para os mesmos bancos, filas, buckets ou serviços do projeto principal. O storage do preview começa vazio e isolado; dados, domínios personalizados e comandos customizados da imagem não são copiados.
+Todo Preview herda os ENVs configurados pelo usuário dentro da Zenifra; os valores não atravessam a Action e nunca são mostrados. Esses ENVs podem apontar para os mesmos bancos, filas, buckets ou serviços do projeto principal. O storage do preview começa vazio e isolado; dados, domínios personalizados e comandos customizados da imagem não são copiados.
 
-`INHERIT_ENVS=true` copies user-configured ENVs inside Zenifra; values never pass through the Action and are never displayed. Those ENVs may point to the same databases, queues, buckets, or services as the main project. Preview storage starts empty and isolated; data, custom domains, and custom image commands are not copied.
+Every Preview inherits user-configured ENVs inside Zenifra; values never pass through the Action and are never displayed. Those ENVs may point to the same databases, queues, buckets, or services as the main project. Preview storage starts empty and isolated; data, custom domains, and custom image commands are not copied.
 
 ## Outputs / Saídas
 

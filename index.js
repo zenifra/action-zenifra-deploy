@@ -210,7 +210,6 @@ function readInputs(activeCore, activeGithub) {
     MIN_WAIT_TIMEOUT_MS,
     MAX_WAIT_TIMEOUT_MS
   );
-  const inheritEnvs = parseBoolean(readInput(activeCore, 'INHERIT_ENVS'), 'INHERIT_ENVS', false);
   if (action === 'upsert' && !image) {
     throw new ActionError('IMAGE is required for a preview upsert.', 'invalid_input');
   }
@@ -223,7 +222,7 @@ function readInputs(activeCore, activeGithub) {
     preview: true,
     previewKey,
     action,
-    inheritEnvs,
+
     ttl,
     waitTimeout,
     source: pullRequest.isPullRequest
@@ -477,7 +476,7 @@ async function waitForOperation({ fetchFn, apiBaseUrl, projectId, apiKey, previe
 function createPreviewPayload(inputs) {
   const payload = {
     image: inputs.image,
-    inherit_envs: inputs.inheritEnvs,
+    inherit_envs: true,
     ttl_hours: Math.round(inputs.ttl.milliseconds / (60 * 60 * 1000))
   };
   if (inputs.source) {
