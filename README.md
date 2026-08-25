@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to Zenifra
-        uses: ramonpaolo/action-zenifra@main
+        uses: zenifra/action-zenifra-deploy@main
         with:
           PROJECT_ID: ${{ vars.ZENIFRA_PROJECT_ID }}
           IMAGE: registry.example.com/my-app:${{ github.sha }}
@@ -115,7 +115,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Manage Preview Environment
-        uses: ramonpaolo/action-zenifra@main
+        uses: zenifra/action-zenifra-deploy@main
         with:
           PROJECT_ID: ${{ vars.ZENIFRA_PROJECT_ID }}
           API_KEY: ${{ secrets.ZENIFRA_API_KEY }}
@@ -150,7 +150,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Manage Preview Environment
-        uses: ramonpaolo/action-zenifra@main
+        uses: zenifra/action-zenifra-deploy@main
         with:
           PROJECT_ID: ${{ vars.ZENIFRA_PROJECT_ID }}
           API_KEY: ${{ secrets.ZENIFRA_API_KEY }}
