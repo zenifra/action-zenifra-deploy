@@ -34,6 +34,7 @@ const PUBLIC_API_ERRORS = {
   plan_not_allowed: 'The selected preview plan is not available.',
   preview_limit_reached: 'The preview environment limit has been reached.',
   operation_in_progress: 'Another preview operation is already in progress.',
+  api_key_ip_not_allowed: 'This API key is restricted to different IP addresses. Remove the IP allowlist for GitHub Actions or allow the runner IP.',
   invalid_request: 'The preview request is invalid.'
 };
 
