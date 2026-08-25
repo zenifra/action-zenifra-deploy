@@ -12,6 +12,7 @@ const MAX_WAIT_TIMEOUT_MS = 15 * 60 * 1000;
 const MIN_WAIT_TIMEOUT_MS = 1000;
 const REQUEST_TIMEOUT_MS = 30 * 1000;
 const MAX_POLL_DELAY_MS = 10 * 1000;
+const ACTION_USER_AGENT = 'zenifra-action-preview/1.0';
 const TERMINAL_STATES = new Set(['available', 'deleted', 'failed', 'error', 'rejected', 'cancelled', 'canceled']);
 const TRANSITIONAL_STATES = new Set([
   'accepted',
@@ -444,6 +445,7 @@ async function waitForOperation({ fetchFn, apiBaseUrl, projectId, apiKey, previe
         method: 'GET',
         headers: {
           Accept: 'application/json',
+          'User-Agent': ACTION_USER_AGENT,
           'X-API-Key': apiKey
         }
       },
@@ -489,6 +491,7 @@ async function runPreview({ inputs, fetchFn, sleep, now }) {
   const headers = {
     Accept: 'application/json',
     'Content-Type': 'application/json',
+    'User-Agent': ACTION_USER_AGENT,
     'X-API-Key': inputs.apiKey
   };
   const requestOptions = inputs.action === 'upsert'
@@ -623,6 +626,7 @@ async function run(deps = {}) {
         body: JSON.stringify({ image: inputs.image }),
         headers: {
           'Content-Type': 'application/json',
+          'User-Agent': ACTION_USER_AGENT,
           'X-API-Key': inputs.apiKey
         }
       },
