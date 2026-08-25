@@ -42,7 +42,6 @@ jobs:
 | `PREVIEW` | Ativa Ambientes de Preview / Enables Preview Environments | Não / No | `false` |
 | `INHERIT_ENVS` | Herda ENVs configurados pelo usuário no projeto principal / Inherits user-configured ENVs from the main project | Não / No | `false` |
 | `PREVIEW_KEY` | Chave estável. Em `pull_request`, deriva `pr-<number>` quando omitida / Stable key. On `pull_request`, derives `pr-<number>` when omitted | Condicional / Conditional | — |
-| `PREVIEW_PLAN` | Plano de preview opcional / Optional preview plan | Não / No | — |
 | `PREVIEW_TTL` | Duração entre `1h` e `168h` / Lifetime from `1h` to `168h` | Não / No | `24h` |
 | `PREVIEW_ACTION` | `auto`, `upsert` ou `delete` / `auto`, `upsert`, or `delete` | Não / No | `auto` |
 | `WAIT_TIMEOUT` | Espera entre `1s` e `15m` / Wait from `1s` to `15m` | Não / No | `10m` |
@@ -159,6 +158,10 @@ jobs:
           PREVIEW_ACTION: ${{ inputs.preview_action }}
           IMAGE: ${{ inputs.preview_action == 'upsert' && 'registry.example.com/my-app:manual' || '' }}
 ```
+
+O Preview sempre usa o mesmo plano do projeto principal. `PREVIEW_TTL` controla somente a duração; não existe seleção de plano separado para o Preview.
+
+The Preview always uses the main project's plan. `PREVIEW_TTL` controls only the lifetime; there is no separate Preview plan selection.
 
 `INHERIT_ENVS=true` copia os ENVs configurados pelo usuário dentro da Zenifra; os valores não atravessam a Action e nunca são mostrados. Esses ENVs podem apontar para os mesmos bancos, filas, buckets ou serviços do projeto principal. O storage do preview começa vazio e isolado; dados, domínios personalizados e comandos customizados da imagem não são copiados.
 

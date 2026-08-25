@@ -26,9 +26,6 @@ inputs:
   PREVIEW_KEY:
     description: 'Stable preview key; derived as pr-<number> for pull_request events / Chave estável; derivada como pr-<number> em eventos pull_request'
     required: false
-  PREVIEW_PLAN:
-    description: 'Optional Preview Environment plan / Plano opcional do Ambiente de Preview'
-    required: false
   PREVIEW_TTL:
     description: 'Preview lifetime from 1h to 168h; default 24h / Duração do preview de 1h a 168h; padrão 24h'
     required: false

@@ -169,7 +169,6 @@ test('upserts a stable PR preview and publishes outputs only after availability'
       IMAGE: 'registry.example/app:pr-42',
       PREVIEW: 'true',
       INHERIT_ENVS: 'true',
-      PREVIEW_PLAN: 'preview-small',
       PREVIEW_TTL: '24h',
       WAIT_TIMEOUT: '1s'
     },
@@ -203,7 +202,6 @@ test('upserts a stable PR preview and publishes outputs only after availability'
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     image: 'registry.example/app:pr-42',
     inherit_envs: true,
-    plan: 'preview-small',
     ttl_hours: 24,
     source: {
       provider: 'github_action',
