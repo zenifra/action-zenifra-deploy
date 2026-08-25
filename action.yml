@@ -11,6 +11,10 @@ inputs:
   API_KEY:
     description: 'Project API key. Store it in a GitHub secret / Chave de API do projeto. Armazene-a em um secret do GitHub'
     required: true
+  API_BASE_URL:
+    description: 'API origin. Defaults to the production API; use a test environment origin for validation / Origem da API. Usa a API de produção por padrão; use a origem de um ambiente de teste para validação'
+    required: false
+    default: 'https://api.zenifra.com'
   PREVIEW:
     description: 'Enable Preview Environment mode / Ativa o modo Ambiente de Preview'
     required: false

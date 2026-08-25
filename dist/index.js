@@ -29456,7 +29456,7 @@ module.exports = require("zlib");
 const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
 
-const API_BASE_URL = 'https://api.zenifra.com';
+const DEFAULT_API_BASE_URL = 'https://api.zenifra.com';
 const DEFAULT_PREVIEW_TTL = '24h';
 const DEFAULT_WAIT_TIMEOUT = '10m';
 const MAX_PREVIEW_TTL_MS = 168 * 60 * 60 * 1000;
@@ -29501,6 +29501,27 @@ class ActionError extends Error {
 function readInput(activeCore, name) {
   const value = activeCore.getInput(name);
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeApiBaseUrl(value) {
+  const rawValue = value || DEFAULT_API_BASE_URL;
+  let parsed;
+
+  try {
+    parsed = new URL(rawValue);
+  } catch {
+    throw new ActionError('API_BASE_URL must be a valid URL.', 'invalid_input');
+  }
+
+  const isLocalHttp = parsed.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname);
+  if (parsed.protocol !== 'https:' && !isLocalHttp) {
+    throw new ActionError('API_BASE_URL must use HTTPS.', 'invalid_input');
+  }
+  if (parsed.username || parsed.password || parsed.search || parsed.hash || (parsed.pathname !== '/' && parsed.pathname !== '')) {
+    throw new ActionError('API_BASE_URL must contain only the API origin.', 'invalid_input');
+  }
+
+  return parsed.origin;
 }
 
 function parseBoolean(value, name, defaultValue) {
@@ -29593,6 +29614,7 @@ function validatePreviewKey(value) {
 }
 
 function readInputs(activeCore, activeGithub) {
+  const apiBaseUrl = normalizeApiBaseUrl(readInput(activeCore, 'API_BASE_URL'));
   const projectId = readInput(activeCore, 'PROJECT_ID');
   const apiKey = readInput(activeCore, 'API_KEY');
   const image = readInput(activeCore, 'IMAGE');
@@ -29609,7 +29631,7 @@ function readInputs(activeCore, activeGithub) {
     if (!image) {
       throw new ActionError('IMAGE is required for a standard deployment.', 'invalid_input');
     }
-    return { projectId, apiKey, image, preview: false };
+    return { apiBaseUrl, projectId, apiKey, image, preview: false };
   }
 
   const pullRequest = getPullRequestContext(activeGithub);
@@ -29650,6 +29672,7 @@ function readInputs(activeCore, activeGithub) {
   }
 
   return {
+    apiBaseUrl,
     projectId,
     apiKey,
     image,
@@ -29762,12 +29785,12 @@ function encodePathSegment(value) {
   return encodeURIComponent(value);
 }
 
-function previewUrl(projectId, previewKey) {
-  return `${API_BASE_URL}/v1/project/${encodePathSegment(projectId)}/preview-environments/${encodePathSegment(previewKey)}`;
+function previewUrl(apiBaseUrl, projectId, previewKey) {
+  return `${apiBaseUrl}/v1/project/${encodePathSegment(projectId)}/preview-environments/${encodePathSegment(previewKey)}`;
 }
 
-function operationUrl(projectId, previewKey, operationId) {
-  return `${previewUrl(projectId, previewKey)}/operations/${encodePathSegment(operationId)}`;
+function operationUrl(apiBaseUrl, projectId, previewKey, operationId) {
+  return `${previewUrl(apiBaseUrl, projectId, previewKey)}/operations/${encodePathSegment(operationId)}`;
 }
 
 function firstString(...values) {
@@ -29860,7 +29883,7 @@ function validateOperationState(action, status) {
   }
 }
 
-async function waitForOperation({ fetchFn, projectId, apiKey, previewKey, operationId, action, initialResult, waitTimeout, sleep, now }) {
+async function waitForOperation({ fetchFn, apiBaseUrl, projectId, apiKey, previewKey, operationId, action, initialResult, waitTimeout, sleep, now }) {
   const startedAt = now();
   const deadline = startedAt + waitTimeout.milliseconds;
   let delay = 1000;
@@ -29874,7 +29897,7 @@ async function waitForOperation({ fetchFn, projectId, apiKey, previewKey, operat
 
     const { response, body } = await requestJson(
       fetchFn,
-      operationUrl(projectId, previewKey, operationId),
+      operationUrl(apiBaseUrl, projectId, previewKey, operationId),
       {
         method: 'GET',
         headers: {
@@ -29923,7 +29946,7 @@ function createPreviewPayload(inputs) {
 }
 
 async function runPreview({ inputs, fetchFn, sleep, now }) {
-  const url = previewUrl(inputs.projectId, inputs.previewKey);
+  const url = previewUrl(inputs.apiBaseUrl, inputs.projectId, inputs.previewKey);
   const headers = {
     Accept: 'application/json',
     'Content-Type': 'application/json',
@@ -29943,6 +29966,7 @@ async function runPreview({ inputs, fetchFn, sleep, now }) {
     validateOperationState(inputs.action, result.status);
     return waitForOperation({
       fetchFn,
+      apiBaseUrl: inputs.apiBaseUrl,
       projectId: inputs.projectId,
       apiKey: inputs.apiKey,
       previewKey: inputs.previewKey,
@@ -29980,6 +30004,7 @@ async function runPreview({ inputs, fetchFn, sleep, now }) {
 
   return waitForOperation({
     fetchFn,
+    apiBaseUrl: inputs.apiBaseUrl,
     projectId: inputs.projectId,
     apiKey: inputs.apiKey,
     previewKey: inputs.previewKey,
@@ -30053,7 +30078,7 @@ async function run(deps = {}) {
   if (!inputs.preview) {
     const { response, body } = await requestJson(
       fetchFn,
-      `${API_BASE_URL}/v1/project/${encodePathSegment(inputs.projectId)}/image`,
+      `${inputs.apiBaseUrl}/v1/project/${encodePathSegment(inputs.projectId)}/image`,
       {
         method: 'PATCH',
         body: JSON.stringify({ image: inputs.image }),

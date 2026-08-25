@@ -37,6 +37,7 @@ jobs:
 | :--- | :--- | :---: | :---: |
 | `PROJECT_ID` | ID do projeto principal / Main project ID | Sim / Yes | — |
 | `API_KEY` | Chave de API do projeto / Project API key | Sim / Yes | — |
+| `API_BASE_URL` | Origem da API; permite validar a Action contra um ambiente de teste / API origin; allows validation against a test environment | Não / No | `https://api.zenifra.com` |
 | `IMAGE` | Imagem a publicar. Obrigatória em deploy normal e `upsert`; dispensada em `delete` / Image to deploy. Required for standard deployments and `upsert`; not required for `delete` | Condicional / Conditional | — |
 | `PREVIEW` | Ativa Ambientes de Preview / Enables Preview Environments | Não / No | `false` |
 | `INHERIT_ENVS` | Herda ENVs configurados pelo usuário no projeto principal / Inherits user-configured ENVs from the main project | Não / No | `false` |
@@ -49,6 +50,52 @@ jobs:
 Booleanos aceitos: `true` e `false` (sem distinção de maiúsculas/minúsculas). Durações usam um número inteiro seguido de `s`, `m`, `h` ou `d`.
 
 Accepted booleans are `true` and `false` (case-insensitive). Durations use a whole number followed by `s`, `m`, `h`, or `d`.
+
+## Validating a feature branch against a test API / Validando uma branch contra uma API de teste
+
+The Action can be referenced from a feature branch in a private test workflow. Set `API_BASE_URL` to the test API origin, use a project and API key created only for that environment, and keep the key in a GitHub secret. The default remains the production API, so existing workflows do not change.
+
+A Action pode ser referenciada por uma branch de feature em um workflow privado de teste. Defina `API_BASE_URL` para a origem da API de teste, use um projeto e uma API Key exclusivos desse ambiente e mantenha a chave em um secret do GitHub. O padrão continua sendo a API de produção, portanto workflows existentes não mudam.
+
+```yaml
+name: Validate Preview Action
+
+on:
+  workflow_dispatch:
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create test preview
+        id: preview
+        uses: zenifra/action-zenifra-deploy@feat/preview-environments
+        with:
+          API_BASE_URL: https://api.example.test
+          PROJECT_ID: ${{ vars.TEST_PROJECT_ID }}
+          API_KEY: ${{ secrets.TEST_PROJECT_API_KEY }}
+          PREVIEW: true
+          PREVIEW_KEY: action-test-${{ github.run_id }}
+          PREVIEW_ACTION: upsert
+          IMAGE: registry.example.test/app:${{ github.sha }}
+          PREVIEW_TTL: 1h
+          WAIT_TIMEOUT: 15m
+
+      - name: Remove test preview
+        if: always()
+        uses: zenifra/action-zenifra-deploy@feat/preview-environments
+        with:
+          API_BASE_URL: https://api.example.test
+          PROJECT_ID: ${{ vars.TEST_PROJECT_ID }}
+          API_KEY: ${{ secrets.TEST_PROJECT_API_KEY }}
+          PREVIEW: true
+          PREVIEW_KEY: action-test-${{ github.run_id }}
+          PREVIEW_ACTION: delete
+```
+
+The API base URL must be HTTPS, except for localhost test runners, and must contain only the API origin without credentials, query parameters, fragments, or paths.
+
+A origem da API deve usar HTTPS, exceto em runners locais apontando para localhost, e deve conter somente a origem da API, sem credenciais, parâmetros de query, fragmentos ou caminhos.
 
 ## Ambiente de Preview em pull requests / Pull request Preview Environment
 

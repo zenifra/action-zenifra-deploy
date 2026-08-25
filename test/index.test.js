@@ -123,6 +123,44 @@ test('keeps the legacy deployment update when PREVIEW is absent', async () => {
   assert.equal(core.summaryRows.length, 0);
 });
 
+test('uses a configured API base URL for a legacy deployment', async () => {
+  const { calls } = await runWith({
+    inputs: {
+      API_BASE_URL: 'https://api-stg.example.test',
+      PROJECT_ID: 'project-123',
+      API_KEY: 'secret-key',
+      IMAGE: 'registry.example/app:latest'
+    },
+    responses: [response(200)]
+  });
+
+  assert.equal(calls[0].url, 'https://api-stg.example.test/v1/project/project-123/image');
+});
+
+test('rejects an API base URL with a path before network access', async () => {
+  const core = createCore({
+    API_BASE_URL: 'https://api-stg.example.test/v1',
+    PROJECT_ID: 'project-123',
+    API_KEY: 'secret-key',
+    IMAGE: 'registry.example/app:latest'
+  });
+  const action = loadAction();
+  let fetchCalled = false;
+
+  await assert.rejects(
+    action.run({
+      core,
+      github: { context: context('push', {}) },
+      fetch: async () => {
+        fetchCalled = true;
+        return response(500);
+      }
+    }),
+    /API_BASE_URL must contain only the API origin/
+  );
+  assert.equal(fetchCalled, false);
+});
+
 test('upserts a stable PR preview and publishes outputs only after availability', async () => {
   const { core, calls } = await runWith({
     inputs: {
