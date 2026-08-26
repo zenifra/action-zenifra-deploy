@@ -40,9 +40,8 @@ jobs:
 | `API_BASE_URL` | Origem da API; permite validar a Action contra um ambiente de teste / API origin; allows validation against a test environment | Não / No | `https://api.zenifra.com` |
 | `IMAGE` | Imagem a publicar. Obrigatória em deploy normal e `upsert`; dispensada em `delete` / Image to deploy. Required for standard deployments and `upsert`; not required for `delete` | Condicional / Conditional | — |
 | `PREVIEW` | Ativa Ambientes de Preview / Enables Preview Environments | Não / No | `false` |
-| `INHERIT_ENVS` | Herda ENVs configurados pelo usuário no projeto principal / Inherits user-configured ENVs from the main project | Não / No | `false` |
+
 | `PREVIEW_KEY` | Chave estável. Em `pull_request`, deriva `pr-<number>` quando omitida / Stable key. On `pull_request`, derives `pr-<number>` when omitted | Condicional / Conditional | — |
-| `PREVIEW_PLAN` | Plano de preview opcional / Optional preview plan | Não / No | — |
 | `PREVIEW_TTL` | Duração entre `1h` e `168h` / Lifetime from `1h` to `168h` | Não / No | `24h` |
 | `PREVIEW_ACTION` | `auto`, `upsert` ou `delete` / `auto`, `upsert`, or `delete` | Não / No | `auto` |
 | `WAIT_TIMEOUT` | Espera entre `1s` e `15m` / Wait from `1s` to `15m` | Não / No | `10m` |
@@ -121,7 +120,7 @@ jobs:
           API_KEY: ${{ secrets.ZENIFRA_API_KEY }}
           IMAGE: registry.example.com/my-app:${{ github.event.pull_request.head.sha }}
           PREVIEW: true
-          INHERIT_ENVS: false
+
           PREVIEW_TTL: 24h
 ```
 
@@ -160,9 +159,13 @@ jobs:
           IMAGE: ${{ inputs.preview_action == 'upsert' && 'registry.example.com/my-app:manual' || '' }}
 ```
 
-`INHERIT_ENVS=true` copia os ENVs configurados pelo usuário dentro da Zenifra; os valores não atravessam a Action e nunca são mostrados. Esses ENVs podem apontar para os mesmos bancos, filas, buckets ou serviços do projeto principal. O storage do preview começa vazio e isolado; dados, domínios personalizados e comandos customizados da imagem não são copiados.
+O Preview sempre usa o mesmo plano do projeto principal. `PREVIEW_TTL` controla somente a duração; não existe seleção de plano separado para o Preview.
 
-`INHERIT_ENVS=true` copies user-configured ENVs inside Zenifra; values never pass through the Action and are never displayed. Those ENVs may point to the same databases, queues, buckets, or services as the main project. Preview storage starts empty and isolated; data, custom domains, and custom image commands are not copied.
+The Preview always uses the main project's plan. `PREVIEW_TTL` controls only the lifetime; there is no separate Preview plan selection.
+
+Todo Preview herda os ENVs configurados pelo usuário dentro da Zenifra; os valores não atravessam a Action e nunca são mostrados. Esses ENVs podem apontar para os mesmos bancos, filas, buckets ou serviços do projeto principal. O storage do preview começa vazio e isolado; dados, domínios personalizados e comandos customizados da imagem não são copiados.
+
+Every Preview inherits user-configured ENVs inside Zenifra; values never pass through the Action and are never displayed. Those ENVs may point to the same databases, queues, buckets, or services as the main project. Preview storage starts empty and isolated; data, custom domains, and custom image commands are not copied.
 
 ## Outputs / Saídas
 
@@ -172,11 +175,37 @@ Preview outputs are set only after the operation reaches a terminal state. For `
 
 | Output | Descrição / Description |
 | :--- | :--- |
+| `project_id` | ID do projeto principal / Main project ID |
+| `preview_key` | Chave estável do Preview / Stable Preview key |
+| `preview_ttl` | Duração configurada do Preview; vazio em `delete` / Configured Preview lifetime; empty for `delete` |
 | `preview_id` | ID do Ambiente de Preview / Preview Environment ID |
 | `preview_url` | URL própria do preview, quando disponível / Preview URL, when available |
 | `expires_at` | Expiração / Expiration timestamp |
 | `operation_id` | ID da operação assíncrona / Async operation ID |
 | `preview_status` | Estado terminal / Terminal status (`available` ou `deleted`) |
+
+Quando um Preview fica disponível, o log do job informa o `PROJECT_ID`, a chave, o status, a URL retornada pela API, o TTL configurado, a data de expiração e o ID da operação. A mesma informação fica no Job Summary.
+
+When a Preview becomes available, the job log reports the `PROJECT_ID`, key, status, API URL, configured TTL, expiration time, and operation ID. The same information is included in the Job Summary.
+
+### O que o Job Summary mostra / Job Summary contents
+
+O Job Summary publica uma tabela **"Ambiente de Preview / Preview Environment"** com apenas informações públicas da operação:
+
+| Campo / Field | Conteúdo / Content |
+| :--- | :--- |
+| Projeto / Project ID | ID do projeto principal / Main project ID |
+| Chave / Key | Chave estável do preview / Stable preview key |
+| Ação / Action | Operação executada (`upsert` ou `delete`) / Executed operation |
+| Status | Estado terminal (`available` ou `deleted`) / Terminal status |
+| Duração / Lifetime | TTL configurado; somente em `upsert` / Configured TTL; only for `upsert` |
+| ID | ID do Ambiente de Preview / Preview Environment ID |
+| URL | URL pública do preview, quando disponível / Public preview URL, when available |
+| Expira em / Expires at | Data e hora da expiração, quando disponível / Expiration timestamp, when available |
+
+O Job Summary nunca contém API Key, valores de variáveis de ambiente ou credenciais — apenas o resultado público da operação.
+
+The Job Summary never contains API Keys, environment variable values, or credentials — only the public operation result.
 
 A Action aguarda a conclusão com polling limitado. Se o tempo acabar ou o estado final não for compatível com a ação solicitada, o job falha com uma mensagem pública e segura. Um `delete` de um preview já ausente é considerado sucesso.
 

@@ -168,8 +168,7 @@ test('upserts a stable PR preview and publishes outputs only after availability'
       API_KEY: 'secret-key',
       IMAGE: 'registry.example/app:pr-42',
       PREVIEW: 'true',
-      INHERIT_ENVS: 'true',
-      PREVIEW_PLAN: 'preview-small',
+
       PREVIEW_TTL: '24h',
       WAIT_TIMEOUT: '1s'
     },
@@ -203,7 +202,6 @@ test('upserts a stable PR preview and publishes outputs only after availability'
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     image: 'registry.example/app:pr-42',
     inherit_envs: true,
-    plan: 'preview-small',
     ttl_hours: 24,
     source: {
       provider: 'github_action',
@@ -213,12 +211,16 @@ test('upserts a stable PR preview and publishes outputs only after availability'
   });
   assert.equal(calls[1].url, `${calls[0].url}/operations/operation-1`);
   assert.deepEqual(core.outputs, {
+    project_id: 'project-123',
+    preview_key: 'pr-42',
+    preview_ttl: '24h',
     preview_id: 'preview-1',
     preview_url: 'https://preview.example/preview-1',
     expires_at: '2026-08-25T00:00:00Z',
     operation_id: 'operation-1',
     preview_status: 'available'
   });
+  assert.ok(core.logs.some(({ message }) => message.includes('Preview available. Project ID: project-123. Preview key: pr-42. Status: available. URL: https://preview.example/preview-1. Lifetime: 24h. Expires at: 2026-08-25T00:00:00Z. Operation ID: operation-1.')));
   assert.equal(core.summaryRows.at(-1)[0], 'write');
   assert.ok(core.summaryRows.some(([kind, value]) => kind === 'table' && JSON.stringify(value).includes('preview-1')));
 });
@@ -242,6 +244,9 @@ test('deletes a closed PR preview without requiring an image', async () => {
   assert.equal(calls[0].url, 'https://api.zenifra.com/v1/project/project-123/preview-environments/pr-42');
   assert.equal(calls[0].options.body, undefined);
   assert.deepEqual(core.outputs, {
+    project_id: 'project-123',
+    preview_key: 'pr-42',
+    preview_ttl: '',
     preview_id: '',
     preview_url: '',
     expires_at: '',
@@ -346,7 +351,7 @@ test('auto upserts a keyed preview outside pull requests with safe defaults', as
   assert.equal(calls[0].options.method, 'PUT');
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     image: 'registry.example/app:manual',
-    inherit_envs: false,
+    inherit_envs: true,
     ttl_hours: 24
   });
   assert.equal(core.outputs.preview_status, 'available');

@@ -19,15 +19,9 @@ inputs:
     description: 'Enable Preview Environment mode / Ativa o modo Ambiente de Preview'
     required: false
     default: 'false'
-  INHERIT_ENVS:
-    description: 'Inherit user-configured environment variables from the main project / Herda as variáveis de ambiente configuradas pelo usuário no projeto principal'
-    required: false
-    default: 'false'
+
   PREVIEW_KEY:
     description: 'Stable preview key; derived as pr-<number> for pull_request events / Chave estável; derivada como pr-<number> em eventos pull_request'
-    required: false
-  PREVIEW_PLAN:
-    description: 'Optional Preview Environment plan / Plano opcional do Ambiente de Preview'
     required: false
   PREVIEW_TTL:
     description: 'Preview lifetime from 1h to 168h; default 24h / Duração do preview de 1h a 168h; padrão 24h'
@@ -42,6 +36,12 @@ inputs:
     required: false
     default: '10m'
 outputs:
+  project_id:
+    description: 'Main project ID / ID do projeto principal'
+  preview_key:
+    description: 'Stable Preview key / Chave estável do Preview'
+  preview_ttl:
+    description: 'Configured Preview lifetime / Duração configurada do Preview'
   preview_id:
     description: 'Preview Environment ID after a terminal operation / ID do Ambiente de Preview após uma operação terminal'
   preview_url:

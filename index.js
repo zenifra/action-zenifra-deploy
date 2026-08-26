@@ -12,6 +12,7 @@ const MAX_WAIT_TIMEOUT_MS = 15 * 60 * 1000;
 const MIN_WAIT_TIMEOUT_MS = 1000;
 const REQUEST_TIMEOUT_MS = 30 * 1000;
 const MAX_POLL_DELAY_MS = 10 * 1000;
+const ACTION_USER_AGENT = 'zenifra-action-preview/1.0';
 const TERMINAL_STATES = new Set(['available', 'deleted', 'failed', 'error', 'rejected', 'cancelled', 'canceled']);
 const TRANSITIONAL_STATES = new Set([
   'accepted',
@@ -25,7 +26,7 @@ const TRANSITIONAL_STATES = new Set([
 
 const PUBLIC_API_ERRORS = {
   unauthorized: 'Authentication failed. Check the API key and try again.',
-  forbidden: 'This project cannot use preview environments.',
+  forbidden: 'This API key cannot manage Preview Environments for this project. Verify the project is enabled and the key has Preview management access.',
   project_not_found: 'The project could not be found.',
   preview_not_found: 'The preview environment could not be found.',
   preview_not_enabled: 'Preview environments are not enabled for this project.',
@@ -34,6 +35,7 @@ const PUBLIC_API_ERRORS = {
   plan_not_allowed: 'The selected preview plan is not available.',
   preview_limit_reached: 'The preview environment limit has been reached.',
   operation_in_progress: 'Another preview operation is already in progress.',
+  api_key_ip_not_allowed: 'This API key is restricted to different IP addresses. Remove the IP allowlist for GitHub Actions or allow the runner IP.',
   invalid_request: 'The preview request is invalid.'
 };
 
@@ -208,12 +210,6 @@ function readInputs(activeCore, activeGithub) {
     MIN_WAIT_TIMEOUT_MS,
     MAX_WAIT_TIMEOUT_MS
   );
-  const inheritEnvs = parseBoolean(readInput(activeCore, 'INHERIT_ENVS'), 'INHERIT_ENVS', false);
-  const plan = readInput(activeCore, 'PREVIEW_PLAN');
-
-  if (plan && (plan.length > 128 || /[\u0000-\u001f\u007f]/.test(plan))) {
-    throw new ActionError('PREVIEW_PLAN is invalid.', 'invalid_input');
-  }
   if (action === 'upsert' && !image) {
     throw new ActionError('IMAGE is required for a preview upsert.', 'invalid_input');
   }
@@ -226,8 +222,7 @@ function readInputs(activeCore, activeGithub) {
     preview: true,
     previewKey,
     action,
-    inheritEnvs,
-    plan: plan || undefined,
+
     ttl,
     waitTimeout,
     source: pullRequest.isPullRequest
@@ -449,6 +444,7 @@ async function waitForOperation({ fetchFn, apiBaseUrl, projectId, apiKey, previe
         method: 'GET',
         headers: {
           Accept: 'application/json',
+          'User-Agent': ACTION_USER_AGENT,
           'X-API-Key': apiKey
         }
       },
@@ -480,12 +476,9 @@ async function waitForOperation({ fetchFn, apiBaseUrl, projectId, apiKey, previe
 function createPreviewPayload(inputs) {
   const payload = {
     image: inputs.image,
-    inherit_envs: inputs.inheritEnvs,
+    inherit_envs: true,
     ttl_hours: Math.round(inputs.ttl.milliseconds / (60 * 60 * 1000))
   };
-  if (inputs.plan) {
-    payload.plan = inputs.plan;
-  }
   if (inputs.source) {
     payload.source = inputs.source;
   }
@@ -497,6 +490,7 @@ async function runPreview({ inputs, fetchFn, sleep, now }) {
   const headers = {
     Accept: 'application/json',
     'Content-Type': 'application/json',
+    'User-Agent': ACTION_USER_AGENT,
     'X-API-Key': inputs.apiKey
   };
   const requestOptions = inputs.action === 'upsert'
@@ -575,10 +569,14 @@ async function writeSummary(activeCore, inputs, result) {
   }
 
   const rows = [
+    [{ data: 'Projeto / Project ID', header: true }, inputs.projectId],
     [{ data: 'Chave / Key', header: true }, inputs.previewKey],
     [{ data: 'Ação / Action', header: true }, inputs.action],
     [{ data: 'Status', header: true }, result.status]
   ];
+  if (inputs.action === 'upsert') {
+    rows.push([{ data: 'Duração / Lifetime', header: true }, inputs.ttl.value]);
+  }
   if (result.previewId) {
     rows.push([{ data: 'ID', header: true }, result.previewId]);
   }
@@ -595,12 +593,38 @@ async function writeSummary(activeCore, inputs, result) {
     .write();
 }
 
-function setPreviewOutputs(activeCore, result) {
+function setPreviewOutputs(activeCore, inputs, result) {
+  activeCore.setOutput('project_id', inputs.projectId);
+  activeCore.setOutput('preview_key', inputs.previewKey);
+  activeCore.setOutput('preview_ttl', inputs.action === 'upsert' ? inputs.ttl.value : '');
   activeCore.setOutput('preview_id', result.previewId || '');
   activeCore.setOutput('preview_url', result.previewUrl || '');
   activeCore.setOutput('expires_at', result.expiresAt || '');
   activeCore.setOutput('operation_id', result.operationId || '');
   activeCore.setOutput('preview_status', result.status || '');
+}
+
+function writePreviewLog(activeCore, inputs, result) {
+  const details = [
+    `Project ID: ${inputs.projectId}`,
+    `Preview key: ${inputs.previewKey}`,
+    `Status: ${result.status}`
+  ];
+
+  if (result.previewUrl) {
+    details.push(`URL: ${result.previewUrl}`);
+  }
+  if (inputs.action === 'upsert') {
+    details.push(`Lifetime: ${inputs.ttl.value}`);
+    if (result.expiresAt) {
+      details.push(`Expires at: ${result.expiresAt}`);
+    }
+  }
+  if (result.operationId) {
+    details.push(`Operation ID: ${result.operationId}`);
+  }
+
+  activeCore.info(`Preview ${result.status}. ${details.join('. ')}.`);
 }
 
 function publicErrorMessage(error) {
@@ -631,6 +655,7 @@ async function run(deps = {}) {
         body: JSON.stringify({ image: inputs.image }),
         headers: {
           'Content-Type': 'application/json',
+          'User-Agent': ACTION_USER_AGENT,
           'X-API-Key': inputs.apiKey
         }
       },
@@ -644,9 +669,9 @@ async function run(deps = {}) {
   }
 
   const result = await runPreview({ inputs, fetchFn, sleep, now });
-  setPreviewOutputs(activeCore, result);
+  setPreviewOutputs(activeCore, inputs, result);
   await writeSummary(activeCore, inputs, result);
-  activeCore.info(`Preview ${result.status}.`);
+  writePreviewLog(activeCore, inputs, result);
 }
 
 async function main() {
