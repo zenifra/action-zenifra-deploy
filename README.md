@@ -188,6 +188,25 @@ Quando um Preview fica disponível, o log do job informa o `PROJECT_ID`, a chave
 
 When a Preview becomes available, the job log reports the `PROJECT_ID`, key, status, API URL, configured TTL, expiration time, and operation ID. The same information is included in the Job Summary.
 
+### O que o Job Summary mostra / Job Summary contents
+
+O Job Summary publica uma tabela **"Ambiente de Preview / Preview Environment"** com apenas informações públicas da operação:
+
+| Campo / Field | Conteúdo / Content |
+| :--- | :--- |
+| Projeto / Project ID | ID do projeto principal / Main project ID |
+| Chave / Key | Chave estável do preview / Stable preview key |
+| Ação / Action | Operação executada (`upsert` ou `delete`) / Executed operation |
+| Status | Estado terminal (`available` ou `deleted`) / Terminal status |
+| Duração / Lifetime | TTL configurado; somente em `upsert` / Configured TTL; only for `upsert` |
+| ID | ID do Ambiente de Preview / Preview Environment ID |
+| URL | URL pública do preview, quando disponível / Public preview URL, when available |
+| Expira em / Expires at | Data e hora da expiração, quando disponível / Expiration timestamp, when available |
+
+O Job Summary nunca contém API Key, valores de variáveis de ambiente ou credenciais — apenas o resultado público da operação.
+
+The Job Summary never contains API Keys, environment variable values, or credentials — only the public operation result.
+
 A Action aguarda a conclusão com polling limitado. Se o tempo acabar ou o estado final não for compatível com a ação solicitada, o job falha com uma mensagem pública e segura. Um `delete` de um preview já ausente é considerado sucesso.
 
 The Action waits for completion with bounded polling. If the wait expires or the terminal state is incompatible with the requested action, the job fails with a safe public message. Deleting an already missing preview is treated as success.
