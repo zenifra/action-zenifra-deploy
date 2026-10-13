@@ -378,6 +378,33 @@ test('recovers from a conflict that returns the active operation', async () => {
   assert.equal(core.outputs.preview_status, 'available');
 });
 
+for (const [code, expected] of [
+  ['PREVIEW_PROJECT_LIMIT_REACHED', /preview environment limit for this project has been reached/],
+  ['PREVIEW_ORGANIZATION_LIMIT_REACHED', /preview environment limit for this organization has been reached/],
+  ['PREVIEW_OPERATION_CONFLICT', /Another preview operation is already in progress/]
+]) {
+  test(`reports the API error ${code} with its own message`, async () => {
+    const core = createCore({
+      PROJECT_ID: 'project-123',
+      API_KEY: 'secret-key',
+      IMAGE: 'registry.example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      PREVIEW: 'true',
+      PREVIEW_KEY: 'manual-preview'
+    });
+    const action = loadAction();
+
+    await assert.rejects(
+      action.run({
+        core,
+        github: { context: context('workflow_dispatch', {}) },
+        fetch: async () => response(409, { status: 'failed', code, message: 'rejected' }),
+        sleep: async () => {}
+      }),
+      expected
+    );
+  });
+}
+
 test('validates preview duration before making a request', async () => {
   const core = createCore({
     PROJECT_ID: 'project-123',

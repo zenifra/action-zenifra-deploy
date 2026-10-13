@@ -34,6 +34,9 @@ const PUBLIC_API_ERRORS = {
   invalid_ttl: 'The preview duration is outside the allowed range.',
   plan_not_allowed: 'The selected preview plan is not available.',
   preview_limit_reached: 'The preview environment limit has been reached.',
+  preview_project_limit_reached: 'The preview environment limit for this project has been reached. Remove previews that are no longer needed and try again.',
+  preview_organization_limit_reached: 'The preview environment limit for this organization has been reached. Remove previews that are no longer needed and try again.',
+  preview_operation_conflict: 'Another preview operation is already in progress.',
   operation_in_progress: 'Another preview operation is already in progress.',
   api_key_ip_not_allowed: 'This API key is restricted to different IP addresses. Remove the IP allowlist for GitHub Actions or allow the runner IP.',
   invalid_request: 'The preview request is invalid.'
