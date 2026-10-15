@@ -39,6 +39,7 @@ const PUBLIC_API_ERRORS = {
   preview_operation_conflict: 'Another preview operation is already in progress.',
   operation_in_progress: 'Another preview operation is already in progress.',
   api_key_ip_not_allowed: 'This API key is restricted to different IP addresses. Remove the IP allowlist for GitHub Actions or allow the runner IP.',
+  image_not_allowed: 'This image cannot be used. Choose a different image.',
   invalid_request: 'The preview request is invalid.'
 };
 

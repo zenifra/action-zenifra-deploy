@@ -472,6 +472,33 @@ test('backs off while polling and attaches an abort timeout to each request', as
   assert.equal(core.outputs.preview_status, 'available');
 });
 
+test('explains a rejected image without exposing API details', async () => {
+  const core = createCore({
+    PROJECT_ID: 'project-123',
+    API_KEY: 'secret-key',
+    IMAGE: 'registry.example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+  });
+  const action = loadAction();
+
+  await assert.rejects(
+    action.run({
+      core,
+      github: { context: context('push', {}) },
+      fetch: async () => response(422, {
+        status: 'failed',
+        code: 'IMAGE_NOT_ALLOWED',
+        message: 'This image cannot be used'
+      })
+    }),
+    (error) => {
+      assert.equal(error.message, 'This image cannot be used. Choose a different image.');
+      assert.equal(error.code, 'image_not_allowed');
+      assert.doesNotMatch(error.message, /secret-key/);
+      return true;
+    }
+  );
+});
+
 test('does not expose unsafe API error details', async () => {
   const core = createCore({
     PROJECT_ID: 'project-123',
