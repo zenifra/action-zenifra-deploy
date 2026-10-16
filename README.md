@@ -40,7 +40,6 @@ jobs:
 | `API_BASE_URL` | Origem da API; permite validar a Action contra um ambiente de teste / API origin; allows validation against a test environment | Não / No | `https://api.zenifra.com` |
 | `IMAGE` | Imagem a publicar. Obrigatória em deploy normal e `upsert`; dispensada em `delete` / Image to deploy. Required for standard deployments and `upsert`; not required for `delete` | Condicional / Conditional | — |
 | `PREVIEW` | Ativa Ambientes de Preview / Enables Preview Environments | Não / No | `false` |
-
 | `PREVIEW_KEY` | Chave estável. Em `pull_request`, deriva `pr-<number>` quando omitida / Stable key. On `pull_request`, derives `pr-<number>` when omitted | Condicional / Conditional | — |
 | `PREVIEW_TTL` | Duração entre `1h` e `168h` / Lifetime from `1h` to `168h` | Não / No | `24h` |
 | `PREVIEW_ACTION` | `auto`, `upsert` ou `delete` / `auto`, `upsert`, or `delete` | Não / No | `auto` |
@@ -166,6 +165,14 @@ The Preview always uses the main project's plan. `PREVIEW_TTL` controls only the
 Todo Preview herda os ENVs configurados pelo usuário dentro da Zenifra; os valores não atravessam a Action e nunca são mostrados. Esses ENVs podem apontar para os mesmos bancos, filas, buckets ou serviços do projeto principal. O storage do preview começa vazio e isolado; dados, domínios personalizados e comandos customizados da imagem não são copiados.
 
 Every Preview inherits user-configured ENVs inside Zenifra; values never pass through the Action and are never displayed. Those ENVs may point to the same databases, queues, buckets, or services as the main project. Preview storage starts empty and isolated; data, custom domains, and custom image commands are not copied.
+
+A API key de organização precisa de `project.preview.deploy`, `project.preview.delete`, `project.read` e `project.env.read` no projeto (o preview usa as variáveis de ambiente do projeto).
+
+An organization API key needs `project.preview.deploy`, `project.preview.delete`, `project.read`, and `project.env.read` on the project (the preview uses the project environment variables).
+
+`PREVIEW_KEY` aceita letras, números, `.`, `_` e `-` (até 64 caracteres) e precisa ter ao menos uma letra ou um número.
+
+`PREVIEW_KEY` accepts letters, numbers, `.`, `_`, and `-` (up to 64 characters) and must contain at least one letter or number.
 
 ## Outputs / Saídas
 

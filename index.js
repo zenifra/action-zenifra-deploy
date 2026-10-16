@@ -40,6 +40,16 @@ const PUBLIC_API_ERRORS = {
   operation_in_progress: 'Another preview operation is already in progress.',
   api_key_ip_not_allowed: 'This API key is restricted to different IP addresses. Remove the IP allowlist for GitHub Actions or allow the runner IP.',
   image_not_allowed: 'This image cannot be used. Choose a different image.',
+  preview_env_access_required: 'This API key cannot read the project variables, which previews inherit. Add the permission to read project variables to the key.',
+  organization_billing_blocked: 'The organization has pending payments. Previews are unavailable until billing is settled.',
+  parent_project_not_found: 'The project could not be found.',
+  project_state_conflict: 'The project is not in a state that allows previews right now. Try again shortly.',
+  project_operation_in_progress: 'Another operation is in progress on the project. Try again shortly.',
+  project_operation_not_supported: 'Preview environments are available only for applications.',
+  preview_plan_not_allowed: 'Preview environments are not available on this project plan.',
+  preview_disabled: 'Preview environments are not enabled for this project.',
+  github_preview_key_owned: 'This preview key is used by an automatic pull request preview. Choose a different PREVIEW_KEY.',
+  forgejo_preview_key_owned: 'This preview key is used by an automatic pull request preview. Choose a different PREVIEW_KEY.',
   invalid_request: 'The preview request is invalid.'
 };
 
@@ -162,6 +172,9 @@ function resolvePreviewAction(requestedAction, pullRequest) {
 function validatePreviewKey(value) {
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(value)) {
     throw new ActionError('PREVIEW_KEY must contain only letters, numbers, dots, underscores, or hyphens.', 'invalid_input');
+  }
+  if (!/[A-Za-z0-9]/.test(value)) {
+    throw new ActionError('PREVIEW_KEY must contain at least one letter or number.', 'invalid_input');
   }
   return value;
 }

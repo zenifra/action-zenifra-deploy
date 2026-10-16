@@ -524,3 +524,83 @@ test('does not expose unsafe API error details', async () => {
     }
   );
 });
+
+test('explains that preview deployment needs access to project variables', async () => {
+  await assert.rejects(
+    runWith({
+      inputs: {
+        PROJECT_ID: 'project-123',
+        API_KEY: 'secret-key',
+        IMAGE: 'registry.example/app:1.2.3',
+        PREVIEW: 'true',
+        PREVIEW_KEY: 'manual-preview'
+      },
+      eventName: 'workflow_dispatch',
+      responses: [response(403, { status: 'failed', code: 'PREVIEW_ENV_ACCESS_REQUIRED', message: 'Permission to read project variables is required for previews' })]
+    }),
+    (error) => {
+      assert.match(error.message, /project variables/);
+      assert.equal(error.code, 'preview_env_access_required');
+      assert.doesNotMatch(error.message, /secret-key/);
+      return true;
+    }
+  );
+});
+
+for (const [status, code, expected] of [
+  [402, 'ORGANIZATION_BILLING_BLOCKED', /pending payments/],
+  [404, 'PARENT_PROJECT_NOT_FOUND', /project could not be found/],
+  [409, 'PROJECT_STATE_CONFLICT', /not in a state that allows previews/],
+  [409, 'PROJECT_OPERATION_IN_PROGRESS', /Another operation is in progress on the project/],
+  [409, 'GITHUB_PREVIEW_KEY_OWNED', /automatic pull request preview/],
+  [409, 'FORGEJO_PREVIEW_KEY_OWNED', /automatic pull request preview/],
+  [422, 'PROJECT_OPERATION_NOT_SUPPORTED', /available only for applications/],
+  [400, 'preview_plan_not_allowed', /not available on this project plan/],
+  [400, 'preview_disabled', /not enabled/]
+]) {
+  test(`explains the ${code} preview refusal`, async () => {
+    await assert.rejects(
+      runWith({
+        inputs: {
+          PROJECT_ID: 'project-123',
+          API_KEY: 'secret-key',
+          IMAGE: 'registry.example/app:1.2.3',
+          PREVIEW: 'true',
+          PREVIEW_KEY: 'manual-preview'
+        },
+        eventName: 'workflow_dispatch',
+        responses: [response(status, { status: 'failed', code, message: 'private detail' })]
+      }),
+      (error) => {
+        assert.match(error.message, expected);
+        assert.equal(error.code, code.toLowerCase());
+        assert.doesNotMatch(error.message, /private detail/);
+        return true;
+      }
+    );
+  });
+}
+
+test('rejects a preview key without a letter or number before network access', async () => {
+  let fetchCalled = false;
+  const core = createCore({
+    PROJECT_ID: 'project-123',
+    API_KEY: 'secret-key',
+    IMAGE: 'registry.example/app:1.2.3',
+    PREVIEW: 'true',
+    PREVIEW_KEY: '._-'
+  });
+
+  await assert.rejects(
+    loadAction().run({
+      core,
+      github: { context: context('workflow_dispatch', {}) },
+      fetch: async () => {
+        fetchCalled = true;
+        return response(500);
+      }
+    }),
+    /PREVIEW_KEY must contain at least one letter or number/
+  );
+  assert.equal(fetchCalled, false);
+});
