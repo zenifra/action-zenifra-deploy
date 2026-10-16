@@ -275,6 +275,62 @@ test('treats a missing preview as a successful idempotent delete', async () => {
   assert.equal(core.summaryRows.at(-1)[0], 'write');
 });
 
+const deleteInputs = {
+  PROJECT_ID: 'project-123',
+  API_KEY: 'secret-key',
+  PREVIEW: 'true',
+  PREVIEW_KEY: 'manual-preview',
+  PREVIEW_ACTION: 'delete'
+};
+
+test('fails a delete when the main project is missing instead of reporting the preview as removed', async () => {
+  await assert.rejects(
+    runWith({
+      inputs: deleteInputs,
+      responses: [response(404, { code: 'PARENT_PROJECT_NOT_FOUND', message: 'private detail' })]
+    }),
+    (error) => {
+      assert.match(error.message, /project could not be found/);
+      assert.equal(error.code, 'parent_project_not_found');
+      return true;
+    }
+  );
+});
+
+test('treats a preview removed while polling the delete as deleted', async () => {
+  const { core, calls } = await runWith({
+    inputs: deleteInputs,
+    responses: [
+      response(202, { operation_id: 'operation-delete', status: 'deleting' }),
+      response(404, { code: 'PREVIEW_NOT_FOUND', message: 'Preview not found' })
+    ]
+  });
+
+  assert.equal(calls.length, 2);
+  assert.equal(core.outputs.preview_status, 'deleted');
+});
+
+for (const body of [
+  { code: 'PARENT_PROJECT_NOT_FOUND', message: 'private detail' },
+  { status: 'failed', message: 'private detail' }
+]) {
+  test(`fails a delete poll on a 404 without the preview code (${body.code || 'no code'})`, async () => {
+    await assert.rejects(
+      runWith({
+        inputs: deleteInputs,
+        responses: [
+          response(202, { operation_id: 'operation-delete', status: 'deleting' }),
+          response(404, body)
+        ]
+      }),
+      (error) => {
+        assert.doesNotMatch(error.message, /private detail/);
+        return true;
+      }
+    );
+  });
+}
+
 test('requires an explicit key for preview actions outside pull requests before network access', async () => {
   const core = createCore({
     PROJECT_ID: 'project-123',
@@ -556,7 +612,7 @@ for (const [status, code, expected] of [
   [409, 'FORGEJO_PREVIEW_KEY_OWNED', /automatic pull request preview/],
   [422, 'PROJECT_OPERATION_NOT_SUPPORTED', /available only for applications/],
   [400, 'preview_plan_not_allowed', /not available on this project plan/],
-  [400, 'preview_disabled', /not enabled/]
+  [400, 'preview_disabled', /^Previews are not enabled for this project or organization\.$/]
 ]) {
   test(`explains the ${code} preview refusal`, async () => {
     await assert.rejects(

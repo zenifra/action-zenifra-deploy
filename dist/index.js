@@ -29500,7 +29500,7 @@ const PUBLIC_API_ERRORS = {
   project_operation_in_progress: 'Another operation is in progress on the project. Try again shortly.',
   project_operation_not_supported: 'Preview environments are available only for applications.',
   preview_plan_not_allowed: 'Preview environments are not available on this project plan.',
-  preview_disabled: 'Preview environments are not enabled for this project.',
+  preview_disabled: 'Previews are not enabled for this project or organization.',
   github_preview_key_owned: 'This preview key is used by an automatic pull request preview. Choose a different PREVIEW_KEY.',
   forgejo_preview_key_owned: 'This preview key is used by an automatic pull request preview. Choose a different PREVIEW_KEY.',
   invalid_request: 'The preview request is invalid.'
@@ -29759,6 +29759,10 @@ function getErrorCode(body) {
   return '';
 }
 
+function isPreviewAlreadyRemoved(action, status, body) {
+  return action === 'delete' && status === 404 && getErrorCode(body) === 'preview_not_found';
+}
+
 function apiError(operation, status, body) {
   const code = getErrorCode(body);
   if (PUBLIC_API_ERRORS[code]) {
@@ -29921,7 +29925,7 @@ async function waitForOperation({ fetchFn, apiBaseUrl, projectId, apiKey, previe
       Math.min(REQUEST_TIMEOUT_MS, remaining)
     );
 
-    if (action === 'delete' && response.status === 404) {
+    if (isPreviewAlreadyRemoved(action, response.status, body)) {
       return { ...result, status: 'deleted' };
     }
     if (response.status < 200 || response.status >= 300) {
@@ -29968,7 +29972,7 @@ async function runPreview({ inputs, fetchFn, sleep, now }) {
     : { method: 'DELETE', headers };
   const { response, body } = await requestJson(fetchFn, url, requestOptions, REQUEST_TIMEOUT_MS);
 
-  if (inputs.action === 'delete' && response.status === 404) {
+  if (isPreviewAlreadyRemoved(inputs.action, response.status, body)) {
     return { operationId: '', previewId: '', previewUrl: '', expiresAt: '', status: 'deleted' };
   }
 
