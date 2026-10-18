@@ -275,6 +275,62 @@ test('treats a missing preview as a successful idempotent delete', async () => {
   assert.equal(core.summaryRows.at(-1)[0], 'write');
 });
 
+const deleteInputs = {
+  PROJECT_ID: 'project-123',
+  API_KEY: 'secret-key',
+  PREVIEW: 'true',
+  PREVIEW_KEY: 'manual-preview',
+  PREVIEW_ACTION: 'delete'
+};
+
+test('fails a delete when the main project is missing instead of reporting the preview as removed', async () => {
+  await assert.rejects(
+    runWith({
+      inputs: deleteInputs,
+      responses: [response(404, { code: 'PARENT_PROJECT_NOT_FOUND', message: 'private detail' })]
+    }),
+    (error) => {
+      assert.match(error.message, /project could not be found/);
+      assert.equal(error.code, 'parent_project_not_found');
+      return true;
+    }
+  );
+});
+
+test('treats a preview removed while polling the delete as deleted', async () => {
+  const { core, calls } = await runWith({
+    inputs: deleteInputs,
+    responses: [
+      response(202, { operation_id: 'operation-delete', status: 'deleting' }),
+      response(404, { code: 'PREVIEW_NOT_FOUND', message: 'Preview not found' })
+    ]
+  });
+
+  assert.equal(calls.length, 2);
+  assert.equal(core.outputs.preview_status, 'deleted');
+});
+
+for (const body of [
+  { code: 'PARENT_PROJECT_NOT_FOUND', message: 'private detail' },
+  { status: 'failed', message: 'private detail' }
+]) {
+  test(`fails a delete poll on a 404 without the preview code (${body.code || 'no code'})`, async () => {
+    await assert.rejects(
+      runWith({
+        inputs: deleteInputs,
+        responses: [
+          response(202, { operation_id: 'operation-delete', status: 'deleting' }),
+          response(404, body)
+        ]
+      }),
+      (error) => {
+        assert.doesNotMatch(error.message, /private detail/);
+        return true;
+      }
+    );
+  });
+}
+
 test('requires an explicit key for preview actions outside pull requests before network access', async () => {
   const core = createCore({
     PROJECT_ID: 'project-123',
@@ -472,6 +528,33 @@ test('backs off while polling and attaches an abort timeout to each request', as
   assert.equal(core.outputs.preview_status, 'available');
 });
 
+test('explains a rejected image without exposing API details', async () => {
+  const core = createCore({
+    PROJECT_ID: 'project-123',
+    API_KEY: 'secret-key',
+    IMAGE: 'registry.example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+  });
+  const action = loadAction();
+
+  await assert.rejects(
+    action.run({
+      core,
+      github: { context: context('push', {}) },
+      fetch: async () => response(422, {
+        status: 'failed',
+        code: 'IMAGE_NOT_ALLOWED',
+        message: 'This image cannot be used'
+      })
+    }),
+    (error) => {
+      assert.equal(error.message, 'This image cannot be used. Choose a different image.');
+      assert.equal(error.code, 'image_not_allowed');
+      assert.doesNotMatch(error.message, /secret-key/);
+      return true;
+    }
+  );
+});
+
 test('does not expose unsafe API error details', async () => {
   const core = createCore({
     PROJECT_ID: 'project-123',
@@ -496,4 +579,84 @@ test('does not expose unsafe API error details', async () => {
       return true;
     }
   );
+});
+
+test('explains that preview deployment needs access to project variables', async () => {
+  await assert.rejects(
+    runWith({
+      inputs: {
+        PROJECT_ID: 'project-123',
+        API_KEY: 'secret-key',
+        IMAGE: 'registry.example/app:1.2.3',
+        PREVIEW: 'true',
+        PREVIEW_KEY: 'manual-preview'
+      },
+      eventName: 'workflow_dispatch',
+      responses: [response(403, { status: 'failed', code: 'PREVIEW_ENV_ACCESS_REQUIRED', message: 'Permission to read project variables is required for previews' })]
+    }),
+    (error) => {
+      assert.match(error.message, /project variables/);
+      assert.equal(error.code, 'preview_env_access_required');
+      assert.doesNotMatch(error.message, /secret-key/);
+      return true;
+    }
+  );
+});
+
+for (const [status, code, expected] of [
+  [402, 'ORGANIZATION_BILLING_BLOCKED', /pending payments/],
+  [404, 'PARENT_PROJECT_NOT_FOUND', /project could not be found/],
+  [409, 'PROJECT_STATE_CONFLICT', /not in a state that allows previews/],
+  [409, 'PROJECT_OPERATION_IN_PROGRESS', /Another operation is in progress on the project/],
+  [409, 'GITHUB_PREVIEW_KEY_OWNED', /automatic pull request preview/],
+  [409, 'FORGEJO_PREVIEW_KEY_OWNED', /automatic pull request preview/],
+  [422, 'PROJECT_OPERATION_NOT_SUPPORTED', /available only for applications/],
+  [400, 'preview_plan_not_allowed', /not available on this project plan/],
+  [400, 'preview_disabled', /^Previews are not enabled for this project or organization\.$/]
+]) {
+  test(`explains the ${code} preview refusal`, async () => {
+    await assert.rejects(
+      runWith({
+        inputs: {
+          PROJECT_ID: 'project-123',
+          API_KEY: 'secret-key',
+          IMAGE: 'registry.example/app:1.2.3',
+          PREVIEW: 'true',
+          PREVIEW_KEY: 'manual-preview'
+        },
+        eventName: 'workflow_dispatch',
+        responses: [response(status, { status: 'failed', code, message: 'private detail' })]
+      }),
+      (error) => {
+        assert.match(error.message, expected);
+        assert.equal(error.code, code.toLowerCase());
+        assert.doesNotMatch(error.message, /private detail/);
+        return true;
+      }
+    );
+  });
+}
+
+test('rejects a preview key without a letter or number before network access', async () => {
+  let fetchCalled = false;
+  const core = createCore({
+    PROJECT_ID: 'project-123',
+    API_KEY: 'secret-key',
+    IMAGE: 'registry.example/app:1.2.3',
+    PREVIEW: 'true',
+    PREVIEW_KEY: '._-'
+  });
+
+  await assert.rejects(
+    loadAction().run({
+      core,
+      github: { context: context('workflow_dispatch', {}) },
+      fetch: async () => {
+        fetchCalled = true;
+        return response(500);
+      }
+    }),
+    /PREVIEW_KEY must contain at least one letter or number/
+  );
+  assert.equal(fetchCalled, false);
 });
