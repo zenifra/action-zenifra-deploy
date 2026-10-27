@@ -29506,6 +29506,11 @@ const PUBLIC_API_ERRORS = {
   invalid_request: 'The preview request is invalid.'
 };
 
+const UPDATE_API_ERRORS = {
+  git_source_transition_required: 'This project deploys from a Git repository. Disconnect the Git source in the project settings before deploying an image.',
+  project_state_conflict: 'The project is not in a state that allows deployments right now. Try again shortly.'
+};
+
 class ActionError extends Error {
   constructor(message, code = 'action_error') {
     super(message);
@@ -29765,8 +29770,9 @@ function isPreviewAlreadyRemoved(action, status, body) {
 
 function apiError(operation, status, body) {
   const code = getErrorCode(body);
-  if (PUBLIC_API_ERRORS[code]) {
-    return new ActionError(PUBLIC_API_ERRORS[code], code);
+  const knownMessage = (operation === 'update' && UPDATE_API_ERRORS[code]) || PUBLIC_API_ERRORS[code];
+  if (knownMessage) {
+    return new ActionError(knownMessage, code);
   }
 
   if (status === 401) {
@@ -29782,7 +29788,12 @@ function apiError(operation, status, body) {
     );
   }
   if (status === 409) {
-    return new ActionError('The preview could not be changed in the current state of the project. Try again shortly.', 'conflict');
+    return new ActionError(
+      operation === 'update'
+        ? 'The deployment could not be applied in the current state of the project. Try again shortly.'
+        : 'The preview could not be changed in the current state of the project. Try again shortly.',
+      'conflict'
+    );
   }
   if (status === 422) {
     return new ActionError(PUBLIC_API_ERRORS.invalid_request, 'invalid_request');
