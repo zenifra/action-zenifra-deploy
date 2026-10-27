@@ -29782,7 +29782,7 @@ function apiError(operation, status, body) {
     );
   }
   if (status === 409) {
-    return new ActionError(PUBLIC_API_ERRORS.operation_in_progress, 'operation_in_progress');
+    return new ActionError('The preview could not be changed in the current state of the project. Try again shortly.', 'conflict');
   }
   if (status === 422) {
     return new ActionError(PUBLIC_API_ERRORS.invalid_request, 'invalid_request');

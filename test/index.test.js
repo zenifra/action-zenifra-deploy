@@ -461,6 +461,29 @@ for (const [code, expected] of [
   });
 }
 
+for (const body of [{ status: 'failed', code: 'UNLISTED_CONFLICT', message: 'private detail' }, { status: 'failed' }]) {
+  test(`does not report an unrecognized conflict (${body.code || 'no code'}) as an operation in progress`, async () => {
+    await assert.rejects(
+      runWith({
+        inputs: {
+          PROJECT_ID: 'project-123',
+          API_KEY: 'secret-key',
+          IMAGE: 'registry.example/app:1.2.3',
+          PREVIEW: 'true',
+          PREVIEW_KEY: 'manual-preview'
+        },
+        eventName: 'workflow_dispatch',
+        responses: [response(409, body)]
+      }),
+      (error) => {
+        assert.equal(error.message, 'The preview could not be changed in the current state of the project. Try again shortly.');
+        assert.equal(error.code, 'conflict');
+        return true;
+      }
+    );
+  });
+}
+
 test('validates preview duration before making a request', async () => {
   const core = createCore({
     PROJECT_ID: 'project-123',
