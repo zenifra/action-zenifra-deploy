@@ -707,3 +707,113 @@ test('rejects a preview key without a letter or number before network access', a
   );
   assert.equal(fetchCalled, false);
 });
+
+function timeoutError() {
+  const error = new Error('The operation was aborted due to timeout');
+  error.name = 'TimeoutError';
+  return error;
+}
+
+test('retries a preview upsert after a request timeout', async () => {
+  const core = createCore({
+    PROJECT_ID: 'project-123',
+    API_KEY: 'secret-key',
+    IMAGE: 'registry.example/app:1.2.3',
+    PREVIEW: 'true',
+    PREVIEW_KEY: 'manual-preview'
+  });
+  const calls = [];
+  const sleeps = [];
+
+  await loadAction().run({
+    core,
+    github: { context: context('workflow_dispatch', {}) },
+    fetch: async (url, options) => {
+      calls.push(options.method);
+      if (calls.length < 3) {
+        throw calls.length === 1 ? timeoutError() : new TypeError('fetch failed');
+      }
+      return response(200, { status: 'available', preview_id: 'preview-1' });
+    },
+    sleep: async (milliseconds) => {
+      sleeps.push(milliseconds);
+    }
+  });
+
+  assert.deepEqual(calls, ['PUT', 'PUT', 'PUT']);
+  assert.deepEqual(sleeps, [1000, 2000]);
+  assert.equal(core.outputs.preview_status, 'available');
+});
+
+test('stops retrying a preview upsert after three timeouts', async () => {
+  let attempts = 0;
+
+  await assert.rejects(
+    loadAction().run({
+      core: createCore({
+        PROJECT_ID: 'project-123',
+        API_KEY: 'secret-key',
+        IMAGE: 'registry.example/app:1.2.3',
+        PREVIEW: 'true',
+        PREVIEW_KEY: 'manual-preview'
+      }),
+      github: { context: context('workflow_dispatch', {}) },
+      fetch: async () => {
+        attempts++;
+        throw timeoutError();
+      },
+      sleep: async () => {}
+    }),
+    (error) => {
+      assert.equal(error.code, 'request_timeout');
+      return true;
+    }
+  );
+  assert.equal(attempts, 3);
+});
+
+test('does not retry a preview upsert that received an HTTP error', async () => {
+  let attempts = 0;
+
+  await assert.rejects(
+    loadAction().run({
+      core: createCore({
+        PROJECT_ID: 'project-123',
+        API_KEY: 'secret-key',
+        IMAGE: 'registry.example/app:1.2.3',
+        PREVIEW: 'true',
+        PREVIEW_KEY: 'manual-preview'
+      }),
+      github: { context: context('workflow_dispatch', {}) },
+      fetch: async () => {
+        attempts++;
+        return response(503, {});
+      },
+      sleep: async () => {}
+    }),
+    /Could not complete the preview operation/
+  );
+  assert.equal(attempts, 1);
+});
+
+test('does not retry a non-idempotent POST after a request timeout', async () => {
+  let attempts = 0;
+
+  await assert.rejects(
+    loadAction().requestJson(
+      async () => {
+        attempts++;
+        throw timeoutError();
+      },
+      'https://api.zenifra.com/v1/example',
+      { method: 'POST' },
+      1000,
+      async () => {}
+    ),
+    (error) => {
+      assert.equal(error.code, 'request_timeout');
+      return true;
+    }
+  );
+  assert.equal(attempts, 1);
+});
