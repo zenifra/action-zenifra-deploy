@@ -12,6 +12,9 @@ const MAX_WAIT_TIMEOUT_MS = 15 * 60 * 1000;
 const MIN_WAIT_TIMEOUT_MS = 1000;
 const REQUEST_TIMEOUT_MS = 30 * 1000;
 const MAX_POLL_DELAY_MS = 10 * 1000;
+const MAX_REQUEST_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1000;
+const RETRYABLE_METHODS = new Set(['GET', 'PUT', 'DELETE']);
 const ACTION_USER_AGENT = 'zenifra-action-preview/1.0';
 const TERMINAL_STATES = new Set(['available', 'deleted', 'failed', 'error', 'rejected', 'cancelled', 'canceled']);
 const TRANSITIONAL_STATES = new Set([
@@ -281,10 +284,9 @@ async function readResponseBody(response) {
   return {};
 }
 
-async function requestJson(fetchFn, url, options, timeoutMs) {
-  let response;
+async function fetchOnce(fetchFn, url, options, timeoutMs) {
   try {
-    response = await fetchFn(url, {
+    return await fetchFn(url, {
       ...options,
       signal: createTimeoutSignal(timeoutMs)
     });
@@ -293,6 +295,22 @@ async function requestJson(fetchFn, url, options, timeoutMs) {
       throw new ActionError('The request to Zenifra timed out.', 'request_timeout');
     }
     throw new ActionError('Could not reach Zenifra. Check the project settings and try again.', 'request_failed');
+  }
+}
+
+async function requestJson(fetchFn, url, options, timeoutMs, sleep) {
+  const attempts = RETRYABLE_METHODS.has(options.method) ? MAX_REQUEST_ATTEMPTS : 1;
+  let response;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      response = await fetchOnce(fetchFn, url, options, timeoutMs);
+      break;
+    } catch (error) {
+      if (attempt >= attempts) {
+        throw error;
+      }
+      await sleep(RETRY_DELAY_MS * attempt);
+    }
   }
 
   return { response, body: await readResponseBody(response) };
@@ -480,7 +498,8 @@ async function waitForOperation({ fetchFn, apiBaseUrl, projectId, apiKey, previe
           'X-API-Key': apiKey
         }
       },
-      Math.min(REQUEST_TIMEOUT_MS, remaining)
+      Math.min(REQUEST_TIMEOUT_MS, remaining),
+      sleep
     );
 
     if (isPreviewAlreadyRemoved(action, response.status, body)) {
@@ -528,7 +547,7 @@ async function runPreview({ inputs, fetchFn, sleep, now }) {
   const requestOptions = inputs.action === 'upsert'
     ? { method: 'PUT', headers, body: JSON.stringify(createPreviewPayload(inputs)) }
     : { method: 'DELETE', headers };
-  const { response, body } = await requestJson(fetchFn, url, requestOptions, REQUEST_TIMEOUT_MS);
+  const { response, body } = await requestJson(fetchFn, url, requestOptions, REQUEST_TIMEOUT_MS, sleep);
 
   if (isPreviewAlreadyRemoved(inputs.action, response.status, body)) {
     return { operationId: '', previewId: '', previewUrl: '', expiresAt: '', status: 'deleted' };
@@ -691,7 +710,8 @@ async function run(deps = {}) {
           'X-API-Key': inputs.apiKey
         }
       },
-      REQUEST_TIMEOUT_MS
+      REQUEST_TIMEOUT_MS,
+      sleep
     );
     if (response.status !== 200) {
       throw apiError('update', response.status, body);
@@ -724,6 +744,7 @@ module.exports = {
   parseDuration,
   parsePreviewAction,
   readInputs,
+  requestJson,
   resolvePreviewAction,
   run,
   runPreview,
