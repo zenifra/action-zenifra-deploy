@@ -461,6 +461,29 @@ for (const [code, expected] of [
   });
 }
 
+for (const body of [{ status: 'failed', code: 'UNLISTED_CONFLICT', message: 'private detail' }, { status: 'failed' }]) {
+  test(`does not report an unrecognized conflict (${body.code || 'no code'}) as an operation in progress`, async () => {
+    await assert.rejects(
+      runWith({
+        inputs: {
+          PROJECT_ID: 'project-123',
+          API_KEY: 'secret-key',
+          IMAGE: 'registry.example/app:1.2.3',
+          PREVIEW: 'true',
+          PREVIEW_KEY: 'manual-preview'
+        },
+        eventName: 'workflow_dispatch',
+        responses: [response(409, body)]
+      }),
+      (error) => {
+        assert.equal(error.message, 'The preview could not be changed in the current state of the project. Try again shortly.');
+        assert.equal(error.code, 'conflict');
+        return true;
+      }
+    );
+  });
+}
+
 test('validates preview duration before making a request', async () => {
   const core = createCore({
     PROJECT_ID: 'project-123',
@@ -580,6 +603,30 @@ test('does not expose unsafe API error details', async () => {
     }
   );
 });
+
+for (const [body, expectedMessage, expectedCode] of [
+  [{ status: 'failed', code: 'GIT_SOURCE_TRANSITION_REQUIRED', message: 'private detail' }, 'This project deploys from a Git repository. Disconnect the Git source in the project settings before deploying an image.', 'git_source_transition_required'],
+  [{ status: 'failed', code: 'PROJECT_STATE_CONFLICT', message: 'private detail' }, 'The project is not in a state that allows deployments right now. Try again shortly.', 'project_state_conflict'],
+  [{ status: 'failed', message: 'private detail' }, 'The deployment could not be applied in the current state of the project. Try again shortly.', 'conflict']
+]) {
+  test(`explains the deployment conflict ${body.code || 'without a code'}`, async () => {
+    await assert.rejects(
+      runWith({
+        inputs: {
+          PROJECT_ID: 'project-123',
+          API_KEY: 'secret-key',
+          IMAGE: 'registry.example/app:1.2.3'
+        },
+        responses: [response(409, body)]
+      }),
+      (error) => {
+        assert.equal(error.message, expectedMessage);
+        assert.equal(error.code, expectedCode);
+        return true;
+      }
+    );
+  });
+}
 
 test('explains that preview deployment needs access to project variables', async () => {
   await assert.rejects(
