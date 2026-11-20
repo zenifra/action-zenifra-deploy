@@ -97,16 +97,16 @@ A origem da API deve usar HTTPS, exceto em runners locais apontando para localho
 
 ## Ambiente de Preview em pull requests / Pull request Preview Environment
 
-A configuração recomendada usa os eventos `opened`, `synchronize`, `reopened` e `closed`. Com `PREVIEW_ACTION: auto`, eventos `opened`, `synchronize` e `reopened` fazem `upsert`; `closed` faz `delete`.
+A configuração recomendada usa dois workflows: `pull_request` com `opened`, `synchronize` e `reopened` faz `upsert`, e `pull_request_target` com `closed` faz `delete`. O GitHub não executa workflows `pull_request` enquanto o pull request tem conflito de merge, nem no fechamento; com `pull_request: closed`, um pull request fechado com conflito deixaria o Preview ativo até o TTL.
 
-The recommended configuration uses `opened`, `synchronize`, `reopened`, and `closed`. With `PREVIEW_ACTION: auto`, `opened`, `synchronize`, and `reopened` perform an `upsert`; `closed` performs a `delete`.
+The recommended configuration uses two workflows: `pull_request` with `opened`, `synchronize`, and `reopened` performs an `upsert`, and `pull_request_target` with `closed` performs a `delete`. GitHub does not run `pull_request` workflows while the pull request has a merge conflict, not even when it is closed; with `pull_request: closed`, a pull request closed with a conflict would leave the Preview running until its TTL.
 
 ```yaml
 name: Preview Environment
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
 
 jobs:
   preview:
@@ -121,6 +121,31 @@ jobs:
           PREVIEW: true
 
           PREVIEW_TTL: 24h
+```
+
+O `pull_request_target` sempre executa, com o workflow da branch padrão e com acesso aos secrets: não faça checkout nem execute o código do pull request nesse workflow.
+
+`pull_request_target` always runs, with the workflow from the default branch and with access to secrets: do not check out or run the pull request code in that workflow.
+
+```yaml
+name: Preview removal
+
+on:
+  pull_request_target:
+    types: [closed]
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove Preview Environment
+        uses: zenifra/action-zenifra-deploy@main
+        with:
+          PROJECT_ID: ${{ vars.ZENIFRA_PROJECT_ID }}
+          API_KEY: ${{ secrets.ZENIFRA_API_KEY }}
+          PREVIEW: true
+          PREVIEW_KEY: pr-${{ github.event.pull_request.number }}
+          PREVIEW_ACTION: delete
 ```
 
 Em um pull request, a chave padrão é `pr-<number>`, portanto novas execuções atualizam o mesmo Ambiente de Preview. Fora de um evento `pull_request`, informe `PREVIEW_KEY` explicitamente.
