@@ -1,0 +1,55 @@
+name: Code review
+
+# Revisa quando o PR é aberto pronto, sai de rascunho ou é reaberto, e quando
+# alguém adiciona o label `revisar-ia` (nova revisão) ou `pronto` (revisão final
+# antes do merge). Revisões seguintes cobrem só o diff desde a última revisão.
+# Pushes não disparam revisão sozinhos.
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+      - labeled
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: >-
+      (github.event.action == 'labeled' && contains(fromJSON('["revisar-ia","pronto"]'), github.event.label.name)) ||
+      (github.event.action != 'labeled' && !github.event.pull_request.draft)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: code-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    env:
+      HAS_KEY: ${{ secrets.AI_REVIEW_API_KEY != '' }}
+    steps:
+      - name: Skip without key
+        if: env.HAS_KEY != 'true'
+        run: echo "::notice::Revisão automática não configurada neste repositório."
+
+      - name: Review
+        if: env.HAS_KEY == 'true'
+        uses: ramonpaolo/ai-codereviewer@a71612b63b2a8c271ebe4e4e39551ecdb0440eac
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AI_PROVIDER: custom
+          AI_BASE_URL: ${{ vars.AI_REVIEW_BASE_URL }}
+          AI_MODEL: ${{ vars.AI_REVIEW_MODEL }}
+          AI_API_KEY: ${{ secrets.AI_REVIEW_API_KEY }}
+          APPROVE_REVIEWS: false
+          PROJECT_CONTEXT: "Official GitHub Action to deploy applications to Zenifra. Responda em português do Brasil."
+          EXCLUDE_PATTERNS: "**/*.lock,**/*-lock.json"
+
+      - name: Allow a new review via label
+        if: always() && github.event.action == 'labeled' && github.event.label.name == 'revisar-ia'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          URL: ${{ github.api_url }}/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/revisar-ia
+        run: |
+          curl -sS -o /dev/null -X DELETE -H "Authorization: Bearer $GH_TOKEN" "$URL" || true
