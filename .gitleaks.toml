@@ -1,0 +1,35 @@
+# Busca de segredos (gitleaks) — regras padrão + exceções estreitas.
+# Falso positivo pontual: comentário `gitleaks:allow` na linha.
+title = "secret scan"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Chaves e tokens falsos em testes, mocks e fixtures"
+targetRules = ["generic-api-key", "private-key", "jwt", "curl-auth-header"]
+paths = [
+  '''(^|/)(__tests__|__mocks__|__fixtures__|fixtures|mocks|e2e|tests?)/''',
+  '''\.(test|spec)\.[cm]?[jt]sx?$''',
+]
+
+[[allowlists]]
+description = "Chaves de modo teste em arquivos de exemplo de ambiente"
+targetRules = ["stripe-access-token"]
+condition = "AND"
+paths = ['''(^|/)\.env\.(example|sample|template|test)$''']
+regexTarget = "match"
+regexes = ['''(sk|pk|rk)_test_''']
+
+[[allowlists]]
+description = "Valores de exemplo em arquivos de exemplo de ambiente"
+targetRules = ["generic-api-key"]
+paths = ['''(^|/)\.env\.(example|sample|template|test)$''']
+
+[[allowlists]]
+description = "Placeholders óbvios no valor do segredo"
+regexTarget = "secret"
+regexes = [
+  '''(?i)(example|exemplo|placeholder|changeme|dummy|redacted|x{8,}|\*{8,}|<[a-z_-]+>|\$\{?[a-z_]+\}?)''',
+  '''(?i)^(sua|seu|your|my|minha)[-_ ]?(api[-_ ]?)?(key|chave|token|senha|secret|password)''',
+]
