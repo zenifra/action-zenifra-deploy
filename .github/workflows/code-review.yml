@@ -1,7 +1,9 @@
 name: Code review
 
-# Revisa quando o PR é aberto pronto, sai de rascunho ou é reaberto.
-# Para revisar de novo após novos commits, adicione o label `revisar-ia`.
+# Revisa quando o PR é aberto pronto, sai de rascunho ou é reaberto, e quando
+# alguém adiciona o label `revisar-ia` (nova revisão) ou `pronto` (revisão final
+# antes do merge). Revisões seguintes cobrem só o diff desde a última revisão.
+# Pushes não disparam revisão sozinhos.
 on:
   pull_request:
     types:
@@ -17,7 +19,7 @@ permissions:
 jobs:
   review:
     if: >-
-      (github.event.action == 'labeled' && github.event.label.name == 'revisar-ia') ||
+      (github.event.action == 'labeled' && contains(fromJSON('["revisar-ia","pronto"]'), github.event.label.name)) ||
       (github.event.action != 'labeled' && !github.event.pull_request.draft)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -45,7 +47,7 @@ jobs:
           EXCLUDE_PATTERNS: "**/*.lock,**/*-lock.json"
 
       - name: Allow a new review via label
-        if: always() && github.event.action == 'labeled'
+        if: always() && github.event.action == 'labeled' && github.event.label.name == 'revisar-ia'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           URL: ${{ github.api_url }}/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/revisar-ia
