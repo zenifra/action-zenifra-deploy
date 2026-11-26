@@ -7,7 +7,10 @@ useDefault = true
 
 [[allowlists]]
 description = "Chaves e tokens falsos em testes, mocks e fixtures"
-targetRules = ["generic-api-key", "private-key", "jwt", "curl-auth-header"]
+targetRules = [
+  "generic-api-key", "private-key", "jwt", "curl-auth-header",
+  "stripe-access-token", "gitlab-pat", "gitlab-ptt", "gitlab-deploy-token",
+]
 paths = [
   '''(^|/)(__tests__|__mocks__|__fixtures__|fixtures|mocks|e2e|tests?)/''',
   '''\.(test|spec)\.[cm]?[jt]sx?$''',
@@ -30,6 +33,6 @@ paths = ['''(^|/)\.env\.(example|sample|template|test)$''']
 description = "Placeholders óbvios no valor do segredo"
 regexTarget = "secret"
 regexes = [
-  '''(?i)(example|exemplo|placeholder|changeme|dummy|redacted|x{8,}|\*{8,}|<[a-z_-]+>|\$\{?[a-z_]+\}?)''',
+  '''(?i)(example|exemplo|placeholder|changeme|dummy|redacted|\.{3}|…|x{8,}|\*{8,}|<[a-z_-]+>|\$\{?[a-z_]+\}?)''',
   '''(?i)^(sua|seu|your|my|minha)[-_ ]?(api[-_ ]?)?(key|chave|token|senha|secret|password)''',
 ]
